@@ -34,7 +34,7 @@ COPY --from=builder /app/src/knexfile.ts ./
 COPY --from=builder /app/src/migrations ./migrations
 
 # Expose port
-EXPOSE 3000
+EXPOSE ${AUTH_SERVICE_PORT:-3001}
 
 # Start the application
 CMD ["npm", "start"]

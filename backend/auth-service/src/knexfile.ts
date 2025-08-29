@@ -3,27 +3,29 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 
-if (process.env.NODE_ENV !== 'production') {
-  const envPath = path.resolve(process.cwd(), '../../../.env');
-  if (fs.existsSync(envPath)) {
-    dotenv.config({ path: envPath });
-  }
+// Load environment variables from .env file if it exists
+const envPath = path.resolve(process.cwd(), '../../../.env');
+if (fs.existsSync(envPath)) {
+  dotenv.config({ path: envPath });
 }
 
 interface KnexFileConfig {
   [key: string]: Knex.Config;
 }
 
+// Helper function to get database configuration
+const getDbConfig = () => ({
+  host: process.env.DB_HOST || 'postgres',  // Default to service name in Docker
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'postgres',
+  database: process.env.DB_NAME || 'energy_monitor',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+});
+
 const config: KnexFileConfig = {
   development: {
     client: 'pg',
-    connection: {
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || 'postgres',
-      database: process.env.DB_NAME || 'auth_service',
-      port: parseInt(process.env.DB_PORT || '5432', 10),
-    },
+    connection: getDbConfig(),
     migrations: {
       directory: './migrations',
       tableName: 'knex_migrations',
@@ -39,11 +41,8 @@ const config: KnexFileConfig = {
   test: {
     client: 'pg',
     connection: {
-      host: process.env.TEST_DB_HOST || 'localhost',
-      user: process.env.TEST_DB_USER || 'postgres',
-      password: process.env.TEST_DB_PASSWORD || 'postgres',
-      database: process.env.TEST_DB_NAME || 'test_auth_service',
-      port: parseInt(process.env.TEST_DB_PORT || '5432', 10),
+      ...getDbConfig(),
+      database: process.env.TEST_DB_NAME || 'test_energy_monitor',
     },
     migrations: {
       directory: './migrations',
@@ -58,7 +57,7 @@ const config: KnexFileConfig = {
   
   production: {
     client: 'pg',
-    connection: process.env.DATABASE_URL,
+    connection: process.env.DATABASE_URL || getDbConfig(),
     pool: {
       min: 2,
       max: 10,

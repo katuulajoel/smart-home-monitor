@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # In production, we don't include the database or pgadmin
+  # as they will be managed services (e.g., AWS RDS, Cloud SQL, etc.)
+  
+  auth-service:
+    build:
+      context: ./backend/auth-service
+      dockerfile: Dockerfile.prod
+    image: ${DOCKER_REGISTRY:-your-registry}/smart-home-auth-service:${TAG:-latest}
+    restart: always
+    environment:
+      - NODE_ENV=production
+      # Other environment variables should be set in production environment
+      # or through a secrets management system
+
+  telemetry-service:
+    build:
+      context: ./backend/telemetry-service
+      dockerfile: Dockerfile.prod
+    image: ${DOCKER_REGISTRY:-your-registry}/smart-home-telemetry-service:${TAG:-latest}
+    restart: always
+    environment:
+      - NODE_ENV=production
+
+  chat-service:
+    build:
+      context: ./backend/chat-service
+      dockerfile: Dockerfile.prod
+    image: ${DOCKER_REGISTRY:-your-registry}/smart-home-chat-service:${TAG:-latest}
+    restart: always
+    environment:
+      - NODE_ENV=production
+      # OPENAI_API_KEY and other secrets should be provided through a secure method
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    image: ${DOCKER_REGISTRY:-your-registry}/smart-home-frontend:${TAG:-latest}
+    restart: always
+    environment:
+      - NODE_ENV=production
+      # These should be set to your production API endpoints
+      - REACT_APP_API_URL=${PROD_API_URL}
+      - REACT_APP_CHAT_API_URL=${PROD_CHAT_API_URL}
+
+# In production, you might want to use:
+# 1. A reverse proxy (like nginx) in front of your services
+# 2. A container orchestration system (like Kubernetes)
+# 3. A secrets management solution
+# 4. Logging and monitoring solutions
+# 5. Auto-scaling configurations
+# 6. Health checks and zero-downtime deployments

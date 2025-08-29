@@ -19,6 +19,44 @@ A full-stack application for monitoring and analyzing home energy consumption th
 - **Containerization**: Docker & Docker Compose
 - **API Documentation**: Swagger/OpenAPI
 
+## Database Migrations
+
+This project uses Knex.js for database migrations. Migrations are version control for your database schema.
+
+### Available Commands
+
+- `npm run migrate:make <name>` - Create a new migration file
+- `npm run migrate:latest` - Run all pending migrations
+- `npm run migrate:up` - Run the next pending migration
+- `npm run migrate:rollback` - Rollback the most recent migration
+- `npm run migrate:down` - Undo the most recent migration
+- `npm run seed:run` - Run database seeds
+
+### Creating a New Migration
+
+1. Create a new migration file:
+   ```bash
+   npm run migrate:make add_user_preferences
+   ```
+
+2. Edit the generated migration file in the `migrations` directory.
+
+3. Run the migration:
+   ```bash
+   npm run migrate:latest
+   ```
+
+### Running Migrations in Docker
+
+Migrations run automatically when services start in the Docker environment. The services are configured to run migrations before starting the application.
+
+### Development Workflow
+
+1. Create a new migration for schema changes
+2. Test the migration locally
+3. Commit the migration file to version control
+4. Deploy to your environment (migrations run automatically)
+
 ## Database Schema
 
 ### Entity Relationship Diagram

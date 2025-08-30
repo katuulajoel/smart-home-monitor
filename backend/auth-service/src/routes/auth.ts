@@ -1,9 +1,7 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
-import { asyncHandler } from '../middleware/error';
-import { authenticate } from '../middleware/auth';
+import { validate, asyncHandler, authenticate } from '@smart-home/shared';
 import * as authController from '../controllers/auth';
-import { validate } from '../middleware/validate';
 
 const router = Router();
 

@@ -202,7 +202,7 @@ API documentation is available at `/api-docs` when the services are running.
 
 3. Start the services:
    ```bash
-   docker-compose up -d
+   docker compose -f docker-compose.dev.yml up -d
    ```
 
 4. Access the application:

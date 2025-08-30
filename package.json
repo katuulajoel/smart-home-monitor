@@ -8,11 +8,19 @@
     "frontend"
   ],
   "scripts": {
-    "build:shared": "cd backend/shared && npm run build",
-    "dev:auth": "cd backend/auth-service && npm run dev",
     "install:all": "npm install",
-    "build:all": "npm run build:shared && npm run build --workspaces --if-present",
-    "test:all": "npm test --workspaces --if-present"
+    "build:shared": "cd backend/shared && npm install && npm run build",
+    "build:auth": "cd backend/auth-service && npm install && npm run build",
+    "build": "npm run build:shared && npm run build:auth",
+    "test:all": "npm test --workspaces --if-present",
+    "start:auth": "cd backend/auth-service && npm start",
+    "dev:auth": "cd backend/auth-service && npm run dev",
+    "migrate:auth": "cd backend/auth-service && npm run migrate",
+    "migrate:auth:dev": "cd backend/auth-service && npm run migrate:dev",
+    "migrate:auth:rollback": "cd backend/auth-service && npm run migrate:rollback",
+    "migrate:auth:rollback:dev": "cd backend/auth-service && npm run migrate:rollback:dev",
+    "seed:auth": "cd backend/auth-service && npm run seed",
+    "seed:auth:dev": "cd backend/auth-service && npm run seed:dev"
   },
   "engines": {
     "node": ">=18.0.0"

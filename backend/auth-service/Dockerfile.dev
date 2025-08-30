@@ -1,0 +1,20 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package manifests
+COPY package*.json ./
+COPY backend/shared/package.json ./backend/shared/
+COPY backend/auth-service/package.json ./backend/auth-service/
+
+# Copy source BEFORE install so lifecycle scripts can run
+COPY backend/shared ./backend/shared
+COPY backend/auth-service ./backend/auth-service
+
+# Install deps (this will now succeed because tsconfig + sources exist)
+RUN npm install --workspaces --include-workspace-root
+
+# Default workdir
+WORKDIR /app/backend/auth-service
+
+CMD ["npm", "run", "dev"]

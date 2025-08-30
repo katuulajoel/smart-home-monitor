@@ -2,8 +2,7 @@ import { Request, Response } from 'express';
 import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { AppError, ConflictError, UnauthorizedError, NotFoundError, ValidationError } from '../utils/errors';
-import logger from '../utils/logger';
+import { AppError, ConflictError, UnauthorizedError, NotFoundError, ValidationError, logger } from '@smart-home/shared';
 import db from '../db';
 
 const JWT_SECRET: Secret = process.env.JWT_SECRET || 'your-secret-key';

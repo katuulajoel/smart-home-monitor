@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Development Database
+  postgres:
+    image: timescale/timescaledb:latest-pg14
+    container_name: energy_monitor_db
+    environment:
+      - POSTGRES_USER=${DB_USER:-postgres}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-postgres}
+      - POSTGRES_DB=${DB_NAME:-energy_monitor}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-energy_monitor}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Development settings for services
+  auth-service:
+    build:
+      context: .
+      dockerfile: ./backend/auth-service/Dockerfile.dev
+    working_dir: /app/backend/auth-service
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
+      - DB_NAME=${DB_NAME:-energy_monitor}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=${AUTH_SERVICE_PORT:-3001}
+    ports:
+      - "${AUTH_SERVICE_PORT:-3001}:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        npm run migrate:dev &&
+        npm run seed:dev &&
+        npm run dev
+      "
+
+volumes:
+  postgres_data:

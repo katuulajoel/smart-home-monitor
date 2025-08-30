@@ -15,7 +15,7 @@ interface KnexFileConfig {
 
 // Helper function to get database configuration
 const getDbConfig = () => ({
-  host: process.env.DB_HOST || 'postgres',  // Default to service name in Docker
+  host: process.env.DB_HOST || 'postgres',
   user: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
   database: process.env.DB_NAME || 'energy_monitor',
@@ -36,23 +36,6 @@ const config: KnexFileConfig = {
       extension: 'ts',
     },
     debug: process.env.KNEX_DEBUG === 'true',
-  },
-  
-  test: {
-    client: 'pg',
-    connection: {
-      ...getDbConfig(),
-      database: process.env.TEST_DB_NAME || 'test_energy_monitor',
-    },
-    migrations: {
-      directory: './migrations',
-      tableName: 'knex_migrations',
-      extension: 'ts',
-    },
-    seeds: {
-      directory: './seeds',
-      extension: 'ts',
-    },
   },
   
   production: {

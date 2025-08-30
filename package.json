@@ -1,0 +1,21 @@
+{
+  "name": "smart-home-energy-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "backend/shared",
+    "backend/auth-service",
+    "frontend"
+  ],
+  "scripts": {
+    "build:shared": "cd backend/shared && npm run build",
+    "dev:auth": "cd backend/auth-service && npm run dev",
+    "install:all": "npm install",
+    "build:all": "npm run build:shared && npm run build --workspaces --if-present",
+    "test:all": "npm test --workspaces --if-present"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "packageManager": "npm@9.0.0"
+}

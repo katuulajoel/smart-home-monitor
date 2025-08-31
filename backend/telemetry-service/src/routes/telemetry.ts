@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { body } from 'express-validator';
+import { query, body } from 'express-validator';
 import { authenticate, asyncHandler, validate } from '@smart-home/shared';
 import { telemetryController } from '../controllers/telemetry';
 
@@ -22,9 +22,25 @@ router.post(
 );
 
 router.get(
+    '/query',
+    validate([
+      query('deviceName').optional().isString().trim(),
+      query('deviceType').optional().isString().trim(),
+      query('metrics').isArray(),
+      query('metrics.*').isIn(['power_consumption', 'voltage', 'current']),
+      query('startDate').isISO8601(),
+      query('endDate').isISO8601(),
+      query('aggregation').optional().isIn(['hourly', 'daily', 'weekly', 'monthly']),
+      query('limit').optional().isInt({ min: 1, max: 1000 }),
+      query('offset').optional().isInt({ min: 0 })
+    ]),
+    asyncHandler(telemetryController.queryTelemetry)
+  );
+
+router.get(
   '/device/:deviceId',
   validate([
-    body('limit').optional().isInt({ min: 1, max: 1000 }).withMessage('Limit must be a number'),
+    query('limit').optional().isInt({ min: 1, max: 1000 }).withMessage('Limit must be a number'),
   ]),
   asyncHandler(telemetryController.getDeviceTelemetry)
 );
@@ -32,8 +48,8 @@ router.get(
 router.get(
   '/summary/device/:deviceId',
   validate([
-    body('startDate').optional().isISO8601().withMessage('Valid start date is required'),
-    body('endDate').optional().isISO8601().withMessage('Valid end date is required'),
+    query('startDate').optional().isISO8601().withMessage('Valid start date is required'),
+    query('endDate').optional().isISO8601().withMessage('Valid end date is required'),
   ]),
   asyncHandler(telemetryController.getDeviceTelemetrySummary)
 );
@@ -41,8 +57,8 @@ router.get(
 router.get(
   '/devices/summary',
   validate([
-    body('startDate').optional().isISO8601().withMessage('Valid start date is required'),
-    body('endDate').optional().isISO8601().withMessage('Valid end date is required'),
+    query('startDate').optional().isISO8601().withMessage('Valid start date is required'),
+    query('endDate').optional().isISO8601().withMessage('Valid end date is required'),
   ]),
   asyncHandler(telemetryController.getUserDevicesTelemetrySummary)
 );

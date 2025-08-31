@@ -1,9 +1,117 @@
 import { Request, Response } from 'express';
 import { ApiResponse, HttpStatus, logger, NotFoundError } from '@smart-home/shared';
 import db from '../db';
+import { z } from 'zod';
+
+const AGGREGATION_FUNCTIONS = ['avg', 'sum', 'min', 'max'] as const;
+
+const querySchema = z.object({
+  deviceName: z.string().optional(),
+  deviceType: z.string().optional(),
+  metrics: z.array(z.enum(['power_consumption', 'voltage', 'current'])).min(1),
+  startDate: z.string().datetime(),
+  endDate: z.string().datetime(),
+  aggregation: z.enum(['hourly', 'daily', 'weekly', 'monthly']).optional(),
+  functions: z.array(z.enum(AGGREGATION_FUNCTIONS)).optional().default(['avg']),
+  limit: z.coerce.number().default(100),
+  offset: z.coerce.number().default(0)
+});
 
 export const telemetryController = {
 
+    async queryTelemetry(req: Request, res: Response) {
+        try {
+          const {
+            deviceName,
+            deviceType,
+            metrics,
+            startDate,
+            endDate,
+            aggregation = 'hourly',
+            functions = ['avg'],
+          } = querySchema.parse(req.query);
+      
+          const userId = req.user.id;
+      
+          // choose time bucket
+          const unit =
+            aggregation === 'daily' ? 'day' :
+            aggregation === 'weekly' ? 'week' :
+            aggregation === 'monthly' ? 'month' : 'hour';
+      
+          let query = db('telemetry_data')
+            .join('devices', 'telemetry_data.device_id', 'devices.id')
+            .where('devices.user_id', userId)
+            .whereBetween('telemetry_data.timestamp', [startDate, endDate])
+            .select(
+              db.raw(`date_trunc('${unit}', telemetry_data.timestamp) as "time_bucket"`),
+              'devices.id as deviceId',
+              'devices.name as deviceName',
+              'devices.type as deviceType'
+            );
+      
+          if (deviceName) query.where('devices.name', 'ilike', `%${deviceName}%`);
+          if (deviceType) query.where('devices.type', 'ilike', `%${deviceType}%`);
+      
+          // add metrics
+          if (metrics && metrics.length > 0) {
+            metrics.forEach(metric => {
+              functions.forEach(fn => {
+                query.select(
+                  db.raw(`${fn}(${metric}) as "${metric}_${fn}"`)
+                );
+              });
+            });
+          }
+      
+          query
+            .groupByRaw(`
+              date_trunc('${unit}', telemetry_data.timestamp),
+              devices.id, devices.name, devices.type
+            `)
+            .orderBy('time_bucket', 'asc');
+      
+          const rows = await query;
+      
+          // transform cleanly
+          const transformed = rows.map(row => {
+            const { timeBucket, deviceId, deviceName, deviceType, ...metricsData } = row;
+      
+            const metricsObj: Record<string, any> = {};
+            Object.entries(metricsData).forEach(([key, value]) => {
+              if (!value && value !== 0) return;
+              
+              const metricMatch = key.match(/^(.+?)(Avg|Sum|Min|Max|Count)$/);
+              if (!metricMatch) return;
+              
+              const [, metric, fn] = metricMatch;
+              const functionName = fn.toLowerCase();
+              
+              if (!metricsObj[metric]) metricsObj[metric] = {};
+              metricsObj[metric][functionName] = Number(value);
+            });
+      
+            return {
+              device: { id: deviceId, name: deviceName, type: deviceType },
+              timestamp: timeBucket instanceof Date ? timeBucket.toISOString() : timeBucket,
+              metrics: metricsObj,
+            };
+          });
+      
+          return res.json({
+            data: transformed,
+            timeRange: { start: startDate, end: endDate },
+            aggregation,
+          });
+        } catch (error) {
+          console.error('❌ Error querying telemetry:', error);
+          return res.status(400).json({
+            error: 'Invalid query parameters',
+            details: error instanceof Error ? error.message : 'Unknown error',
+          });
+        }
+    },
+    
     async addTelemetry(req: Request, res: Response): Promise<void> {
         try {
             const { deviceId, timestamp, energyWatts, voltage, current, additional_metrics = {} } = req.body;

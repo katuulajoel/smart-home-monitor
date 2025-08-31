@@ -1,7 +1,7 @@
 {
-  "name": "telemetry-service",
+  "name": "chat-service",
   "version": "1.0.0",
-  "description": "Telemetry service for the Smart Home Energy Monitor",
+  "description": "Chat service for the Smart Home Energy Monitor",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -25,20 +25,22 @@
   },
   "dependencies": {
     "@smart-home/shared": "file:../shared",
+    "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
     "express-validator": "^7.0.1",
     "helmet": "^7.0.0",
     "jsonwebtoken": "^9.0.0",
     "knex": "^2.5.1",
     "morgan": "^1.10.0",
     "objection": "^3.1.0",
+    "openai": "^4.0.0",
     "pg": "^8.11.0",
     "uuid": "^11.1.0",
-    "winston": "^3.8.2",
-    "zod": "^3.22.4"
+    "winston": "^3.8.2"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.2",

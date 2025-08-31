@@ -1,0 +1,20 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package manifests
+COPY package*.json ./
+COPY backend/shared/package.json ./backend/shared/
+COPY backend/chat-service/package.json ./backend/chat-service/
+
+# Copy source BEFORE install so lifecycle scripts can run
+COPY backend/shared ./backend/shared
+COPY backend/chat-service ./backend/chat-service
+
+# Install deps (this will now succeed because tsconfig + sources exist)
+RUN npm install --workspaces --include-workspace-root
+
+# Default workdir
+WORKDIR /app/backend/chat-service
+
+CMD ["npm", "run", "dev"]

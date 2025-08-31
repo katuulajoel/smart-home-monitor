@@ -5,14 +5,17 @@
   "workspaces": [
     "backend/shared",
     "backend/auth-service",
+    "backend/telemetry-service",
+    "backend/chat-service",
     "frontend"
   ],
   "scripts": {
     "install:all": "npm install",
     "build:shared": "cd backend/shared && npm install && npm run build",
-    "build:auth": "cd backend/auth-service && npm install && npm run build",
     "build": "npm run build:shared && npm run build:auth",
     "test:all": "npm test --workspaces --if-present",
+
+    "build:auth": "cd backend/auth-service && npm install && npm run build",
     "start:auth": "cd backend/auth-service && npm start",
     "dev:auth": "cd backend/auth-service && npm run dev",
     "migrate:auth": "cd backend/auth-service && npm run migrate",
@@ -20,7 +23,25 @@
     "migrate:auth:rollback": "cd backend/auth-service && npm run migrate:rollback",
     "migrate:auth:rollback:dev": "cd backend/auth-service && npm run migrate:rollback:dev",
     "seed:auth": "cd backend/auth-service && npm run seed",
-    "seed:auth:dev": "cd backend/auth-service && npm run seed:dev"
+    "seed:auth:dev": "cd backend/auth-service && npm run seed:dev",
+
+    "build:telemetry": "cd backend/telemetry-service && npm install && npm run build",
+    "dev:telemetry": "cd backend/telemetry-service && npm run dev",
+    "migrate:telemetry": "cd backend/telemetry-service && npm run migrate",
+    "migrate:telemetry:dev": "cd backend/telemetry-service && npm run migrate:dev",
+    "migrate:telemetry:rollback": "cd backend/telemetry-service && npm run migrate:rollback",
+    "migrate:telemetry:rollback:dev": "cd backend/telemetry-service && npm run migrate:rollback:dev",
+    "seed:telemetry": "cd backend/telemetry-service && npm run seed",
+    "seed:telemetry:dev": "cd backend/telemetry-service && npm run seed:dev",
+    
+    "build:chat": "cd backend/chat-service && npm install && npm run build",
+    "dev:chat": "cd backend/chat-service && npm run dev",
+    "migrate:chat": "cd backend/chat-service && npm run migrate",
+    "migrate:chat:dev": "cd backend/chat-service && npm run migrate:dev",
+    "migrate:chat:rollback": "cd backend/chat-service && npm run migrate:rollback",
+    "migrate:chat:rollback:dev": "cd backend/chat-service && npm run migrate:rollback:dev",
+    "seed:chat": "cd backend/chat-service && npm run seed",
+    "seed:chat:dev": "cd backend/chat-service && npm run seed:dev"
   },
   "engines": {
     "node": ">=18.0.0"

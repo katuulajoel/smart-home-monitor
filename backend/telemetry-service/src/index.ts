@@ -15,36 +15,19 @@ if (process.env.NODE_ENV !== 'production') {
 
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
-import { errorHandler, notFoundHandler, logger } from '@smart-home/shared';
-import authRoutes from './routes/auth';
-import db from './db';
+import { errorHandler, notFoundHandler,logger } from '@smart-home/shared';
+import telemetryRoutes from './routes/telemetry';
 
 const app: Express = express();
-const PORT = Number(process.env.AUTH_SERVICE_PORT || 3001);
+const PORT = Number(process.env.TELEMETRY_SERVICE_PORT || 3002);
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Test database connection
-app.get('/test-db', async (_req: Request, res: Response) => {
-  try {
-    const result = await db.raw('SELECT NOW() as now');
-    res.json({ success: true, time: result.rows[0].now });
-  } catch (error: unknown) {
-    logger.error('Database connection failed', { error });
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ 
-      success: false, 
-      error: 'Database connection failed',
-      ...(process.env.NODE_ENV === 'development' && { details: errorMessage })
-    });
-  }
-});
-
 // Routes
-app.use('/api/auth', authRoutes);
+app.use('/api/telemetry', telemetryRoutes);
 
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
@@ -56,7 +39,7 @@ app.use(errorHandler);
 
 // Start server
 const server = app.listen(PORT, () => {
-  logger.info(`Auth service running on port ${PORT}`);
+  logger.info(`Telemetry service running on port ${PORT}`);
 });
 
 // Graceful shutdown to release the port cleanly

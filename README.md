@@ -23,39 +23,55 @@ A full-stack application for monitoring and analyzing home energy consumption th
 
 This project uses Knex.js for database migrations. Migrations are version control for your database schema.
 
-### Available Commands
+### Migration Strategy
 
-- `npm run migrate:make <name>` - Create a new migration file
-- `npm run migrate:latest` - Run all pending migrations
-- `npm run migrate:up` - Run the next pending migration
-- `npm run migrate:rollback` - Rollback the most recent migration
-- `npm run migrate:down` - Undo the most recent migration
-- `npm run seed:run` - Run database seeds
+We've adopted a service-based migration approach where each service manages its own database schema. This approach was chosen because:
 
-### Creating a New Migration
+1. **Service Independence**: Each service can evolve its database schema independently
+2. **Team Autonomy**: Different teams can work on different services without coordinating migrations
+3. **Future Flexibility**: Enables potential migration to separate databases per service if needed
 
-1. Create a new migration file:
-   ```bash
-   npm run migrate:make add_user_preferences
-   ```
+#### When to Use Separate Migration Tables
 
-2. Edit the generated migration file in the `migrations` directory.
-
-3. Run the migration:
-   ```bash
-   npm run migrate:latest
-   ```
-
-### Running Migrations in Docker
-
-Migrations run automatically when services start in the Docker environment. The services are configured to run migrations before starting the application.
+- **Multiple Services**: Each service has its own `knex_migrations_<service>` table (e.g., `knex_migrations_telemetry`)
+- **Independent Deployments**: When services are deployed separately
+- **Team Structure**: When different teams manage different services
+- **Migration Conflicts**: To avoid conflicts when multiple services modify the same database
 
 ### Development Workflow
 
-1. Create a new migration for schema changes
-2. Test the migration locally
-3. Commit the migration file to version control
-4. Deploy to your environment (migrations run automatically)
+1. **Creating Migrations**:
+   ```bash
+   # Navigate to the service directory
+   cd <service-directory>
+   
+   # Create a new migration file e.g add_user_roles
+   npm run migrate:make:dev <migration-name>
+   
+   # Edit the generated file in src/migrations/
+   ```
+
+2. **Running Migrations**:
+   ```bash
+   # Run all pending migrations
+   npm run migrate:dev
+   
+   # Rollback the most recent migration
+   npm run migrate:rollback:dev
+   
+   # Run database seeds (if any)
+   npm run seed:dev
+   ```
+
+3. **Migration Guidelines**:
+   - Always test migrations in development before committing
+   - Include both `up` and `down` methods for rollback support
+   - For TimescaleDB features that don't support transactions, disable them in the migration:
+     ```typescript
+     export const config = {
+       transaction: false
+     };
+     ```
 
 ## Database Schema
 

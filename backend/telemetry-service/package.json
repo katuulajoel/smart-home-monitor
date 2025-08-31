@@ -1,7 +1,7 @@
 {
-  "name": "@smart-home/auth-service",
+  "name": "telemetry-service",
   "version": "1.0.0",
-  "description": "Authentication service for Smart Home Energy Monitor",
+  "description": "Telemetry service for the Smart Home Energy Monitor",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {

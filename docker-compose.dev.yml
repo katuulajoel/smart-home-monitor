@@ -46,5 +46,27 @@ services:
         npm run dev
       "
 
+  # Telemetry Service
+  telemetry-service:
+    build:
+      context: ./backend/telemetry-service
+      dockerfile: Dockerfile.dev
+    working_dir: /app/backend/telemetry-service
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-energy_monitor}
+    depends_on:
+      - auth-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 volumes:
   postgres_data:

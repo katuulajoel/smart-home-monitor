@@ -193,7 +193,25 @@ smart-home-energy-monitor/
 
 ## API Documentation
 
-API documentation is available at `/api-docs` when the services are running.
+Each microservice provides its own interactive API documentation using Swagger UI. You can access them at:
+
+- **Auth Service**: `http://localhost:3001/api-docs`
+- **Telemetry Service**: `http://localhost:3002/api-docs`
+- **Chat Service**: `http://localhost:3003/api-docs`
+
+### Authentication
+
+To use the protected endpoints in the Telemetry and Chat services, you'll need to:
+
+1. First, obtain an authentication token from the Auth Service:
+   - Use the `/api/auth/login` endpoint with valid credentials
+   - You'll receive a JWT token in the response
+
+2. Authorize in Swagger UI:
+   - Click the "Authorize" button (lock icon) in the top-right corner
+   - Enter your JWT token in the format: `<your-jwt-token>`
+   - Click "Authorize" to enable authenticated requests
+
 
 ## Getting Started
 

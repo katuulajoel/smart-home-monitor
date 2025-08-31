@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import swaggerUi from 'swagger-ui-express';
+import { specs } from './config/swagger';
 
 // Load env from repo root using process.cwd() to avoid ESM-only APIs
 const envCandidates = [
@@ -15,7 +17,7 @@ if (process.env.NODE_ENV !== 'production') {
 
 import express, { type Express, type Request, type Response, type NextFunction } from 'express';
 import cors from 'cors';
-import { errorHandler, notFoundHandler,logger } from '@smart-home/shared';
+import { errorHandler, notFoundHandler, logger } from '@smart-home/shared';
 import telemetryRoutes from './routes/telemetry';
 
 const app: Express = express();
@@ -26,12 +28,29 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Swagger documentation
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Smart Home Energy Monitor - Telemetry API',
+  }));
+  
+  logger.info(`Swagger UI available at http://localhost:${PORT}/api-docs`);
+}
+
 // Routes
 app.use('/api/telemetry', telemetryRoutes);
 
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// API documentation JSON
+app.get('/api-docs.json', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(specs);
 });
 
 app.use(notFoundHandler);

@@ -25,6 +25,8 @@
   },
   "dependencies": {
     "@smart-home/shared": "file:../shared",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -39,6 +41,8 @@
     "objection": "^3.1.0",
     "openai": "^4.0.0",
     "pg": "^8.11.0",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
     "uuid": "^11.1.0",
     "winston": "^3.8.2"
   },

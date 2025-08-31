@@ -2,6 +2,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
 import rateLimit from 'express-rate-limit';
+import swaggerUi from 'swagger-ui-express';
+import { specs } from './config/swagger';
 
 // Load env from repo root using process.cwd() to avoid ESM-only APIs
 const envCandidates = [
@@ -27,6 +29,17 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Swagger documentation
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Smart Home Energy Monitor - Chat API',
+  }));
+  
+  logger.info(`Swagger UI available at http://localhost:${PORT}/api-docs`);
+}
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -37,6 +50,12 @@ app.use('/api', limiter);
 
 // Routes
 app.use('/api/chat', chatRoutes);
+
+// API documentation JSON
+app.get('/api-docs.json', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(specs);
+});
 
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {

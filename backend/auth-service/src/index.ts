@@ -1,6 +1,8 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import swaggerUi from 'swagger-ui-express';
+import { specs } from './config/swagger';
 
 // Load env from repo root using process.cwd() to avoid ESM-only APIs
 const envCandidates = [
@@ -27,6 +29,17 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Swagger documentation
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'Smart Home Energy Monitor - Auth API',
+  }));
+  
+  logger.info(`Swagger UI available at http://localhost:${PORT}/api-docs`);
+}
+
 // Test database connection
 app.get('/test-db', async (_req: Request, res: Response) => {
   try {
@@ -41,6 +54,12 @@ app.get('/test-db', async (_req: Request, res: Response) => {
       ...(process.env.NODE_ENV === 'development' && { details: errorMessage })
     });
   }
+});
+
+// API documentation JSON
+app.get('/api-docs.json', (_req: Request, res: Response) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(specs);
 });
 
 // Routes

@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { format, subDays, subMonths, subYears } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import ProtectedRoute from '@/components/protected-route';
 import DeviceList from '@/components/device-list';
 import { telemetryClient } from '@/lib/api-client';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface DataPoint {
   timestamp: string;
@@ -37,21 +39,61 @@ interface SummaryData {
 }
 
 const formatDate = (dateString: string) => {
-  return format(new Date(dateString), 'MMM d');
+    const date = new Date(dateString);
+    const now = new Date();
+    return date.getFullYear() === now.getFullYear()
+      ? format(date, 'MMM d')
+      : format(date, 'MMM d, yyyy');
 };
 
-const fetchEnergySummary = async (): Promise<SummaryData> => {
-  const endDate = new Date();
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - 7);
-  
-  const params = {
-    startDate: startDate.toISOString(),
-    endDate: endDate.toISOString()
-  };
+type DateRange = {
+  startDate: Date;
+  endDate: Date;
+};
 
-  const response = await telemetryClient.get('/devices/summary', { params });
-  return response.data.data;
+type DateRangePreset = 'week' | 'month' | 'year';
+
+const getDateRange = (preset: DateRangePreset): DateRange => {
+  const endDate = new Date();
+  let startDate = new Date();
+  
+  switch (preset) {
+    case 'week':
+      startDate = subDays(endDate, 7);
+      break;
+    case 'month':
+      startDate = subMonths(endDate, 1);
+      break;
+    case 'year':
+      startDate = subYears(endDate, 1);
+      break;
+  }
+  
+  return { startDate, endDate };
+};
+
+const DateRangeSelector = ({
+    activeRange,
+    onDateRangeChange,
+  }: {
+    activeRange: DateRangePreset;
+    onDateRangeChange: (preset: DateRangePreset) => void;
+  }) => {
+    return (
+      <Tabs
+        value={activeRange}
+        className="w-full md:w-auto"
+        onValueChange={(value) => {
+          onDateRangeChange(value as DateRangePreset);
+        }}
+      >
+        <TabsList>
+          <TabsTrigger value="week">Past Week</TabsTrigger>
+          <TabsTrigger value="month">Past Month</TabsTrigger>
+          <TabsTrigger value="year">Past Year</TabsTrigger>
+        </TabsList>
+      </Tabs>
+    );
 };
 
 const EnergySummaryCard = ({ data }: { data: SummaryData }) => {
@@ -158,71 +200,95 @@ const EnergyUsageChart = ({ data }: { data: SummaryData }) => {
 };
 
 export default function DashboardPage() {
-  const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        const data = await fetchEnergySummary();
-        setSummaryData(data);
-      } catch (err) {
-        console.error('Error loading energy data:', err);
-        setError('Failed to load energy data. Please try again later.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  if (isLoading) {
+    const [summaryData, setSummaryData] = useState<SummaryData | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+  
+    const [dateRange, setDateRange] = useState<DateRange>(() => getDateRange('week'));
+    const [activeRange, setActiveRange] = useState<DateRangePreset>("week");
+  
+    useEffect(() => {
+      const fetchData = async () => {
+        try {
+          setIsLoading(true);
+          const params = {
+            startDate: dateRange.startDate.toISOString(),
+            endDate: dateRange.endDate.toISOString(),
+          };
+  
+          const response = await telemetryClient.get('/devices/summary', { params });
+          setSummaryData(response.data.data);
+        } catch (err) {
+          console.error('Error loading energy data:', err);
+          setError('Failed to load energy data. Please try again later.');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+  
+      fetchData();
+    }, [dateRange]);
+  
+    const handleDateRangeChange = useCallback((preset: DateRangePreset) => {
+        setActiveRange(preset);
+        setDateRange(getDateRange(preset));
+    }, []);
+  
+    if (isLoading) {
+      return (
+        <ProtectedRoute>
+          <div className="max-w-7xl mx-auto p-4 space-y-6">
+            <Skeleton className="h-8 w-64 mb-6" />
+            <div className="grid gap-6">
+              <Skeleton className="h-48 w-full" />
+              <Skeleton className="h-96 w-full" />
+              <Skeleton className="h-64 w-full" />
+            </div>
+          </div>
+        </ProtectedRoute>
+      );
+    }
+  
+    if (error) {
+      return (
+        <ProtectedRoute>
+          <div className="max-w-7xl mx-auto p-4">
+            <div
+              className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative"
+              role="alert"
+            >
+              <strong className="font-bold">Error: </strong>
+              <span className="block sm:inline">{error}</span>
+            </div>
+          </div>
+        </ProtectedRoute>
+      );
+    }
+  
     return (
       <ProtectedRoute>
         <div className="max-w-7xl mx-auto p-4 space-y-6">
-          <Skeleton className="h-8 w-64 mb-6" />
-          <div className="grid gap-6">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-96 w-full" />
-            <Skeleton className="h-64 w-full" />
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <h1 className="text-2xl font-bold text-gray-900">Energy Dashboard</h1>
+            <DateRangeSelector
+              activeRange={activeRange}
+              onDateRangeChange={handleDateRangeChange}
+            />
+          </div>
+  
+          {summaryData && (
+            <>
+              <EnergySummaryCard data={summaryData} />
+              <EnergyUsageChart data={summaryData} />
+            </>
+          )}
+  
+          <div className="mt-8">
+            <h2 className="text-xl font-semibold mb-4">Your Devices</h2>
+            <DeviceList />
           </div>
         </div>
       </ProtectedRoute>
     );
   }
-
-  if (error) {
-    return (
-      <ProtectedRoute>
-        <div className="max-w-7xl mx-auto p-4">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative" role="alert">
-            <strong className="font-bold">Error: </strong>
-            <span className="block sm:inline">{error}</span>
-          </div>
-        </div>
-      </ProtectedRoute>
-    );
-  }
-
-  return (
-    <ProtectedRoute>
-      <div className="max-w-7xl mx-auto p-4 space-y-6">
-        <h1 className="text-2xl font-bold text-gray-900">Energy Dashboard</h1>
-        
-        {summaryData && (
-          <>
-            <EnergySummaryCard data={summaryData} />
-            <EnergyUsageChart data={summaryData} />
-          </>
-        )}
-        
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-4">Your Devices</h2>
-          <DeviceList />
-        </div>
-      </div>
-    </ProtectedRoute>
-  );
-}
+  

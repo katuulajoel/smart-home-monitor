@@ -334,4 +334,35 @@ export const telemetryController = {
             } as ApiResponse);
         }
     },
+
+    async getDeviceById(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const userId = req.user.id;
+
+            const device = await db('devices')
+                .where('id', id)
+                .andWhere('user_id', userId)
+                .select('id', 'name', 'type', 'metadata', 'created_at as createdAt')
+                .first();
+
+            if (!device) {
+                return res.status(HttpStatus.NOT_FOUND).json({
+                    success: false,
+                    message: 'Device not found or access denied'
+                });
+            }
+
+            return res.status(HttpStatus.OK).json({
+                success: true,
+                data: device
+            });
+        } catch (error) {
+            logger.error('Error fetching device details:', error);
+            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+                success: false,
+                message: 'Failed to fetch device details'
+            });
+        }
+    },
 };

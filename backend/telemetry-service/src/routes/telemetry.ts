@@ -17,6 +17,53 @@ router.use(authenticate);
 
 /**
  * @swagger
+ * components:
+ *   schemas:
+ *     Device:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         name:
+ *           type: string
+ *         type:
+ *           type: string
+ *         metadata:
+ *           type: object
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     TelemetryData:
+ *       type: object
+ *       properties:
+ *         id:
+ *           type: string
+ *           format: uuid
+ *         deviceId:
+ *           type: string
+ *           format: uuid
+ *         timestamp:
+ *           type: string
+ *           format: date-time
+ *         energyWatts:
+ *           type: number
+ *         voltage:
+ *           type: number
+ *         current:
+ *           type: number
+ *         powerFactor:
+ *           type: number
+ */
+
+/**
+ * @swagger
  * /telemetry:
  *   post:
  *     summary: Add new telemetry data
@@ -321,5 +368,34 @@ router.get(
  *                   type: string
  */
 router.get('/devices', asyncHandler(telemetryController.getDevices));
+
+/**
+ * @swagger
+ * /telemetry/devices/{id}:
+ *   get:
+ *     summary: Get device details by ID
+ *     tags: [Telemetry]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Device ID
+ *     responses:
+ *       200:
+ *         description: Device details
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Device'
+ *       404:
+ *         description: Device not found
+ *       500:
+ *         description: Server error
+ */
+router.get('/devices/:id', asyncHandler(telemetryController.getDeviceById));
 
 export default router;

@@ -244,6 +244,7 @@ router.get(
   '/device/:deviceId',
   validate([
     query('limit').optional().isInt({ min: 1, max: 1000 }).withMessage('Limit must be a number'),
+    query('before').optional().isISO8601().withMessage('Invalid date format'),
   ]),
   asyncHandler(telemetryController.getDeviceTelemetry)
 );

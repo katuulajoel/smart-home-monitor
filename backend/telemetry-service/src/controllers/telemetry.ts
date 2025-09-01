@@ -151,26 +151,38 @@ export const telemetryController = {
     async getDeviceTelemetry(req: Request, res: Response): Promise<Response> {
         try {
             const { deviceId } = req.params;
-            const { startDate, endDate, limit = 100 } = req.query;
+            const { limit = 50, before } = req.query;
             
-            const telemetryData = await db('telemetry_data')
+            let query = db('telemetry_data')
                 .where({ device_id: deviceId })
-                .select('*')
-                .limit(Number(limit));
+                .orderBy('timestamp', 'desc')
+                .limit(Number(limit) + 1);
+            
+            if (before) {
+                query = query.where('timestamp', '<', new Date(before as string));
+            }
+            
+            const telemetryData = await query;
+            
+            const hasMore = telemetryData.length > Number(limit);
+            const items = hasMore ? telemetryData.slice(0, -1) : telemetryData;
+            const lastItem = items[items.length - 1];
             
             const response: ApiResponse = {
                 status: 'success',
-                data: telemetryData,
+                data: items,
                 meta: {
-                total: telemetryData.length,
-                limit: Number(limit),
+                    total: items.length,
+                    limit: Number(limit),
+                    hasMore,
+                    nextCursor: hasMore && lastItem ? lastItem.timestamp : null,
                 },
             };
             
             return res.status(HttpStatus.OK).json(response);
         } catch (error) {
             logger.error('Error fetching device telemetry:', error);
-            throw error; // Let the error handler middleware handle it
+            throw error;
         }
     },
 

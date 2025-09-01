@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { telemetryClient } from '@/lib/api-client';
 import ProtectedRoute from '@/components/protected-route';
 
@@ -13,35 +13,90 @@ interface TelemetryData {
   current?: number;
 }
 
+const TELEMETRY_LIMIT = 20;
+
 export default function DeviceDetailPage() {
   const { id } = useParams();
   const [device, setDevice] = useState<any>(null);
   const [telemetry, setTelemetry] = useState<TelemetryData[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState('');
+  const [hasMore, setHasMore] = useState(true);
+  const observer = useRef<IntersectionObserver>();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setIsLoading(true);
-        const [deviceRes, telemetryRes] = await Promise.all([
-          telemetryClient.get(`/devices/${id}`),
-          telemetryClient.get(`/device/${id}?limit=100`),
-        ]);
-        setDevice(deviceRes.data.data);
-        setTelemetry(telemetryRes.data.data);
-      } catch (err) {
-        setError('Failed to load device data');
-        console.error(err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    if (id) {
-      fetchData();
+  const fetchTelemetry = useCallback(async (before?: string) => {
+    try {
+      const params = new URLSearchParams({
+        limit: TELEMETRY_LIMIT.toString(),
+        ...(before && { before }),
+      });
+      
+      const response = await telemetryClient.get(`/device/${id}?${params.toString()}`);
+      const newTelemetry = response.data.data;
+      
+      setTelemetry(prev => before ? [...prev, ...newTelemetry] : newTelemetry);
+      setHasMore(response.data.meta?.hasMore || false);
+      return newTelemetry;
+    } catch (err) {
+      setError('Failed to load telemetry data');
+      console.error(err);
+      return [];
     }
   }, [id]);
+
+  const fetchInitialData = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const [deviceRes] = await Promise.all([
+        telemetryClient.get(`/devices/${id}`),
+        fetchTelemetry(),
+      ]);
+      setDevice(deviceRes.data.data);
+    } catch (err) {
+      setError('Failed to load device data');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [id, fetchTelemetry]);
+
+  useEffect(() => {
+    if (id) {
+      fetchInitialData();
+    }
+  }, [id, fetchInitialData]);
+
+  const loadMore = useCallback(async () => {
+    if (isLoadingMore || !hasMore) return;
+    
+    try {
+      setIsLoadingMore(true);
+      const lastTelemetry = telemetry[telemetry.length - 1];
+      if (lastTelemetry) {
+        await fetchTelemetry(lastTelemetry.timestamp);
+      }
+    } catch (err) {
+      console.error('Error loading more telemetry:', err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [fetchTelemetry, isLoadingMore, hasMore, telemetry]);
+
+  // Set up intersection observer for infinite scroll
+  const lastTelemetryElementRef = useCallback((node: HTMLElement | null) => {
+    if (isLoadingMore) return;
+    
+    if (observer.current) observer.current.disconnect();
+    
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0]?.isIntersecting && hasMore) {
+        loadMore();
+      }
+    });
+    
+    if (node) observer.current.observe(node);
+  }, [isLoadingMore, hasMore, loadMore]);
 
   if (isLoading) {
     return (
@@ -145,22 +200,35 @@ export default function DeviceDetailPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {telemetry.map((reading, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(reading.timestamp).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {reading.powerConsumption}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {reading.voltage || 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {reading.current || 'N/A'}
+                {telemetry.map((entry, index) => {
+                  const isLastElement = index === telemetry.length - 1;
+                  return (
+                    <tr 
+                      key={index} 
+                      ref={isLastElement ? lastTelemetryElementRef : null}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {new Date(entry.timestamp).toLocaleString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {entry.powerConsumption?.toFixed(2) || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {entry.voltage?.toFixed(2) || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {entry.current?.toFixed(2) || 'N/A'}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {isLoadingMore && (
+                  <tr>
+                    <td colSpan={4} className="text-center py-4">
+                      <div className="inline-block animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-blue-500"></div>
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

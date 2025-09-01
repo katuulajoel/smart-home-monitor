@@ -7,7 +7,7 @@ export async function seed(knex: Knex): Promise<void> {
   // Ideally, we should move this to an environment variable so that
   // other services that want to use this user for seeding data can
   // also use the same email.
-  let user = await knex('users').where({email: 'test@example.com'}).first();
+  let user = await knex('users').where({email: 'user@example.com'}).first();
 
   if (!user) {
     // Hash password
@@ -17,7 +17,7 @@ export async function seed(knex: Knex): Promise<void> {
     // If no users exist, create a test user
     [user] = await knex('users')
       .insert({
-        email: 'test@example.com',
+        email: 'user@example.com',
         password: hashedPassword,
         name: 'Test User',
         created_at: new Date(),
@@ -126,5 +126,11 @@ export async function seed(knex: Knex): Promise<void> {
   }
 
   // Refresh the materialized view to include the new data
-  await knex.raw('REFRESH MATERIALIZED VIEW CONCURRENTLY daily_device_metrics');
+  await knex.raw(`
+    CALL refresh_continuous_aggregate(
+      'daily_device_metrics',
+      window_start => NOW() - INTERVAL '7 days',
+      window_end => NOW()
+    );
+  `);
 }

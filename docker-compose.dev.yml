@@ -45,25 +45,44 @@ services:
         npm run seed:dev &&
         npm run dev
       "
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "http://localhost:${AUTH_SERVICE_PORT:-3001}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 
   # Telemetry Service
   telemetry-service:
     build:
-      context: ./backend/telemetry-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: ./backend/telemetry-service/Dockerfile.dev
     working_dir: /app/backend/telemetry-service
     environment:
       - NODE_ENV=development
-      - DB_HOST=${DB_HOST:-postgres}
-      - DB_PORT=${DB_PORT:-5432}
+      - DB_HOST=postgres
+      - DB_PORT=5432
       - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_NAME=${DB_NAME:-energy_monitor}
+      - JWT_SECRET=${JWT_SECRET}
+    ports:
+      - "${TELEMETRY_SERVICE_PORT:-3002}:3002"
     depends_on:
-      - auth-service
+      postgres:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    command: >
+      sh -c "
+        npm run migrate:dev &&
+        npm run seed:dev &&
+        npm run dev
+      "
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:3002/health"]
+      test: ["CMD", "wget", "--spider", "http://localhost:${TELEMETRY_SERVICE_PORT:-3002}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -71,31 +90,40 @@ services:
   # Chat Service
   chat-service:
     build:
-      context: ./backend/chat-service
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: ./backend/chat-service/Dockerfile.dev
     working_dir: /app/backend/chat-service
     environment:
       - NODE_ENV=development
-      - DB_HOST=${DB_HOST:-postgres}
-      - DB_PORT=${DB_PORT:-5432}
+      - DB_HOST=postgres
+      - DB_PORT=5432
       - DB_USER=${DB_USER:-postgres}
-      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PASSWORD=${DB_PASSWORD:-postgres}
       - DB_NAME=${DB_NAME:-energy_monitor}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - TELEMETRY_SERVICE_PORT=${TELEMETRY_SERVICE_PORT:-3002}
+      - TELEMETRY_SERVICE_URL=${TELEMETRY_SERVICE_URL}
+    ports:
+      - "${CHAT_SERVICE_PORT:-3003}:3003"
     depends_on:
-      - auth-service
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:3003/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      postgres:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+      telemetry-service:
+        condition: service_healthy
+    command: >
+      sh -c "
+        npm run migrate:dev &&
+        npm run dev
+      "
 
   # Frontend
   frontend:
     build:
-      context: ./frontend
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: ./frontend/Dockerfile.dev
     working_dir: /app/frontend
     env_file:
       - ./.env
@@ -108,16 +136,17 @@ services:
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     volumes:
-      - ./:/app
+      - ./frontend:/app/frontend
       - /app/frontend/node_modules
     depends_on:
       - auth-service
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - telemetry-service
+      - chat-service
+    command: >
+      sh -c "
+        npm install &&
+        npm run dev
+      "
 
 volumes:
   postgres_data:

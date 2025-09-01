@@ -8,7 +8,7 @@ import { logger } from '@smart-home/shared';
 // Configuration
 const TELEMETRY_SERVICE_URL = process.env.NODE_ENV === 'production'
   ? process.env.PROD_TELEMETRY_SERVICE_URL
-  : `http://localhost:${process.env.TELEMETRY_SERVICE_PORT}`;
+  : process.env.TELEMETRY_SERVICE_URL || `http://telemetry-service:${process.env.TELEMETRY_SERVICE_PORT || 3002}`;
 
 // Types
 type MessageRole = 'user' | 'assistant' | 'system';
@@ -74,8 +74,8 @@ function determineAggregation(startDate: string, endDate: string): string {
 function convertIntentToQueryParams(intent: any): Record<string, any> {
   const params: Record<string, any> = {};
 
-  // Map device info
-  if (intent.device) {
+  // Map device info - skip if device is 'all'
+  if (intent.device && intent.device.toLowerCase() !== 'all') {
     const deviceLower = intent.device.toLowerCase();
     const deviceMappings: Record<string, string> = {
       'ac': 'air_conditioner',
@@ -268,8 +268,6 @@ async function generateAIResponse(message: string, history: Message[], userId: s
     });
 
     const analysis = JSON.parse(completion.choices[0].message?.content || '{"needsTelemetry": false}');
-
-    console.log('Analysis:', analysis);
 
     if (analysis.needsTelemetry) {
       // Fetch telemetry data using the converted parameters

@@ -17,5 +17,8 @@ WORKDIR /app/frontend
 # Copy the rest of the frontend code
 COPY frontend/ .
 
+# Expose the port the app runs on
+EXPOSE 3000
+
 # Start the development server
 CMD ["npm", "run", "dev"]

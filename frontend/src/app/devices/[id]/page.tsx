@@ -13,7 +13,7 @@ interface TelemetryData {
   current?: number;
 }
 
-const TELEMETRY_LIMIT = 20;
+const TELEMETRY_LIMIT = 30;
 
 export default function DeviceDetailPage() {
   const { id } = useParams();
@@ -23,6 +23,7 @@ export default function DeviceDetailPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [hasMore, setHasMore] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const observer = useRef<IntersectionObserver | null>(null);
 
   const fetchTelemetry = useCallback(async (before?: string) => {
@@ -33,14 +34,14 @@ export default function DeviceDetailPage() {
       });
       
       const response = await telemetryClient.get(`/device/${id}?${params.toString()}`);
-      const newTelemetry = response.data.data;
-      
+      const newTelemetry = Array.isArray(response.data?.data.items) ? response.data.data.items : [];
+ 
       setTelemetry(prev => before ? [...prev, ...newTelemetry] : newTelemetry);
-      setHasMore(response.data.meta?.hasMore || false);
+      setNextCursor(response.data?.data?.nextCursor || null);
+      setHasMore(response.data?.data?.hasMore || false);
       return newTelemetry;
     } catch (err) {
       setError('Failed to load telemetry data');
-      console.error(err);
       return [];
     }
   }, [id]);
@@ -55,7 +56,6 @@ export default function DeviceDetailPage() {
       setDevice(deviceRes.data.data);
     } catch (err) {
       setError('Failed to load device data');
-      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -68,20 +68,17 @@ export default function DeviceDetailPage() {
   }, [id, fetchInitialData]);
 
   const loadMore = useCallback(async () => {
-    if (isLoadingMore || !hasMore) return;
+    if (isLoadingMore || !hasMore || !nextCursor) return;
     
     try {
       setIsLoadingMore(true);
-      const lastTelemetry = telemetry[telemetry.length - 1];
-      if (lastTelemetry) {
-        await fetchTelemetry(lastTelemetry.timestamp);
-      }
+      await fetchTelemetry(nextCursor);
     } catch (err) {
-      console.error('Error loading more telemetry:', err);
+      setError('Failed to load more telemetry data');
     } finally {
       setIsLoadingMore(false);
     }
-  }, [fetchTelemetry, isLoadingMore, hasMore, telemetry]);
+  }, [isLoadingMore, hasMore, nextCursor, fetchTelemetry]);
 
   // Set up intersection observer for infinite scroll
   const lastTelemetryElementRef = useCallback((node: HTMLElement | null) => {
@@ -200,7 +197,7 @@ export default function DeviceDetailPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {telemetry.map((entry, index) => {
+                {telemetry?.map((entry, index) => {
                   const isLastElement = index === telemetry.length - 1;
                   return (
                     <tr 

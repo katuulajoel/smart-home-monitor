@@ -15,6 +15,13 @@ export async function up(knex: Knex): Promise<void> {
     FROM telemetry_data
     GROUP BY device_id, day;
   `);
+
+  await knex.raw(`
+    SELECT add_continuous_aggregate_policy('daily_device_metrics',
+      start_offset => INTERVAL '7 days',
+      end_offset => INTERVAL '1 hour',
+      schedule_interval => INTERVAL '1 hour');
+  `);
 }
 
 export async function down(knex: Knex): Promise<void> {

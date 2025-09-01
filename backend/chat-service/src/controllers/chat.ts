@@ -269,6 +269,8 @@ async function generateAIResponse(message: string, history: Message[], userId: s
 
     const analysis = JSON.parse(completion.choices[0].message?.content || '{"needsTelemetry": false}');
 
+    console.log('Analysis:', analysis);
+
     if (analysis.needsTelemetry) {
       // Fetch telemetry data using the converted parameters
       const telemetryData = await fetchTelemetryData(userId, analysis, req.headers.authorization);

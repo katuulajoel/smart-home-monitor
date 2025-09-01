@@ -2,7 +2,8 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { apiClient } from '@/lib/api-client';
+import { v4 as uuidv4 } from 'uuid';
+import { chatClient } from '@/lib/api-client';
 
 interface Message {
   id: string;
@@ -41,11 +42,9 @@ export default function AIChatPanel({ onClose }: { onClose: () => void }) {
     setIsLoading(true);
 
     try {
-      const { data } = await apiClient.post('/ai/chat', {
+      const { data } = await chatClient.post('/message', {
         message: input,
-        context: {
-          // Add any relevant context here
-        },
+        sessionId: uuidv4(),
       });
 
       const assistantMessage: Message = {

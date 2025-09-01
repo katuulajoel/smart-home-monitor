@@ -19,6 +19,96 @@ A full-stack application for monitoring and analyzing home energy consumption th
 - **Containerization**: Docker & Docker Compose
 - **API Documentation**: Swagger/OpenAPI
 
+## Getting Started
+
+### Prerequisites
+- Node.js (v18 or higher)
+- npm (v9 or higher)
+- Docker and Docker Compose
+- PostgreSQL (for local development without Docker)
+
+### Option 1: Using Docker (Recommended)
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/smart-home-energy-monitor.git
+   cd smart-home-energy-monitor
+   ```
+
+2. Copy the example environment file and update with your configuration:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Start all services with Docker Compose:
+   ```bash
+   docker-compose -f docker-compose.dev.yml up --build -d
+   ```
+
+4. Access the application at `http://localhost:3000`
+
+### Option 2: Manual Setup
+
+1. Clone the repository and install dependencies:
+   ```bash
+   git clone https://github.com/your-username/smart-home-energy-monitor.git
+   cd smart-home-energy-monitor
+   npm install
+   ```
+
+2. Set up the database:
+   - Create a PostgreSQL database
+   - Copy the example environment file:
+     ```bash
+     cp .env.example .env
+     ```
+   - Update `.env` with your database credentials
+
+3. Set up and start the Auth Service:
+   ```bash
+   # Run migrations
+   npm run migrate:auth:dev
+   
+   # Seed initial data
+   npm run seed:auth:dev
+   
+   # Start the service
+   npm run dev:auth
+   ```
+
+4. In a new terminal, set up and start the Telemetry Service:
+   ```bash
+   # Run migrations
+   npm run migrate:telemetry:dev
+   
+   # Seed initial data
+   npm run seed:telemetry:dev
+   
+   # Start the service
+   npm run dev:telemetry
+   ```
+
+5. In another terminal, set up and start the Chat Service:
+   ```bash
+   # Run migrations
+   npm run migrate:chat:dev
+   
+   # Start the service
+   npm run dev:chat
+   ```
+
+6. In a final terminal, start the Frontend:
+   ```bash
+   npm run dev:frontend
+   ```
+
+7. Access the application at `http://localhost:3000`
+
+### Login Credentials
+Use the following credentials to log in:
+- Email: `user@example.com`
+- Password: `password123`
+
 ## Database Migrations
 
 This project uses Knex.js for database migrations. Migrations are version control for your database schema.
@@ -185,7 +275,8 @@ smart-home-energy-monitor/
 ├── backend/                 # Backend services
 │   ├── auth-service/        # Authentication service
 │   ├── telemetry-service/   # Telemetry data handling
-│   └── chat-service/        # Conversational AI service
+│   ├── chat-service/        # Conversational AI service
+│   └── shared/              # Shared code
 ├── frontend/                # React frontend
 ├── docker-compose.yml       # Docker Compose configuration
 └── README.md                # This file
@@ -213,37 +304,6 @@ To use the protected endpoints in the Telemetry and Chat services, you'll need t
    - Click "Authorize" to enable authenticated requests
 
 
-## Getting Started
-
-### Prerequisites
-
-- Docker & Docker Compose
-- Node.js (v18+)
-- npm or yarn
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd smart-home-energy-monitor
-   ```
-
-2. Copy the environment variables:
-   ```bash
-   cp .env.example .env
-   ```
-
-3. Start the services:
-   ```bash
-   docker compose -f docker-compose.dev.yml up -d
-   ```
-
-4. Access the application:
-   - Frontend: http://localhost:3000
-   - API Docs: http://localhost:3001/api-docs
-   - Database: PostgreSQL on port 5432
-
 ## Development
 
 ### Running Tests
@@ -251,14 +311,6 @@ To use the protected endpoints in the Telemetry and Chat services, you'll need t
 ```bash
 # Run tests for all services
 npm test
-```
-
-### Generating Test Data
-
-Use the provided script to generate test telemetry data:
-
-```bash
-python scripts/generate_telemetry.py
 ```
 
 ## License

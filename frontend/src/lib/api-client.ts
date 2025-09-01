@@ -1,24 +1,24 @@
 import axios, { AxiosInstance } from 'axios';
 
-// Determine the API base URL based on environment
+// Get the base URL for API services
 const getBaseUrl = (service: 'auth' | 'telemetry' | 'chat' = 'auth') => {
   if (typeof window === 'undefined') return ''; // Server-side should use relative URL
   
-  // In production, use the production URLs
+  // In production, use the production URLs from environment variables
   if (process.env.NEXT_PUBLIC_IS_PRODUCTION === 'true') {
     const urls = {
-      auth: process.env.NEXT_PUBLIC_API_URL || 'https://api.yourdomain.com',
-      telemetry: process.env.NEXT_PUBLIC_TELEMETRY_SERVICE_URL || 'https://api.yourdomain.com/telemetry',
-      chat: process.env.NEXT_PUBLIC_CHAT_SERVICE_URL || 'https://api.yourdomain.com/chat'
+      auth: process.env.NEXT_PUBLIC_API_URL || '',
+      telemetry: process.env.NEXT_PUBLIC_TELEMETRY_SERVICE_URL || '',
+      chat: process.env.NEXT_PUBLIC_CHAT_SERVICE_URL || ''
     };
     return urls[service];
   }
 
-  // In development, use localhost with appropriate ports and paths
+  // In development, use localhost with ports from environment variables
   const baseUrls = {
-    auth: `http://localhost:${process.env.NEXT_PUBLIC_AUTH_PORT || 3001}/api`,
-    telemetry: `http://localhost:${process.env.NEXT_PUBLIC_TELEMETRY_PORT || 3002}/api/telemetry`,
-    chat: `http://localhost:${process.env.NEXT_PUBLIC_CHAT_PORT || 3003}/api/chat`
+    auth: `http://localhost:${process.env.AUTH_SERVICE_PORT || 3001}/api`,
+    telemetry: `http://localhost:${process.env.TELEMETRY_SERVICE_PORT || 3002}/api/telemetry`,
+    chat: `http://localhost:${process.env.CHAT_SERVICE_PORT || 3003}/api/chat`
   };
   return baseUrls[service];
 };

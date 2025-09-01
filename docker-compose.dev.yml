@@ -97,11 +97,19 @@ services:
       context: ./frontend
       dockerfile: Dockerfile.dev
     working_dir: /app/frontend
+    env_file:
+      - ./.env
     environment:
       - NODE_ENV=development
-      - REACT_APP_API_URL=http://localhost:3001
+      - AUTH_SERVICE_PORT=${AUTH_SERVICE_PORT:-3001}
+      - TELEMETRY_SERVICE_PORT=${TELEMETRY_SERVICE_PORT:-3002}
+      - CHAT_SERVICE_PORT=${CHAT_SERVICE_PORT:-3003}
+      - FRONTEND_PORT=${FRONTEND_PORT:-3000}
     ports:
-      - "3000:3000"
+      - "${FRONTEND_PORT:-3000}:3000"
+    volumes:
+      - ./:/app
+      - /app/frontend/node_modules
     depends_on:
       - auth-service
     restart: unless-stopped

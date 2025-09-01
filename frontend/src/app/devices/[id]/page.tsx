@@ -8,7 +8,7 @@ import ProtectedRoute from '@/components/protected-route';
 interface TelemetryData {
   id: string;
   timestamp: string;
-  energyWatts: number;
+  powerConsumption: number;
   voltage?: number;
   current?: number;
 }
@@ -23,7 +23,7 @@ export default function DeviceDetailPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [hasMore, setHasMore] = useState(true);
-  const observer = useRef<IntersectionObserver>();
+  const observer = useRef<IntersectionObserver | null>(null);
 
   const fetchTelemetry = useCallback(async (before?: string) => {
     try {

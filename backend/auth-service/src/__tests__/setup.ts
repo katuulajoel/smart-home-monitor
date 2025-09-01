@@ -9,12 +9,34 @@ process.env.JWT_EXPIRES_IN = '1h';
 jest.setTimeout(10000);
 
 // Mock all dependencies globally
-jest.mock('../db');
-jest.mock('bcryptjs');
-jest.mock('jsonwebtoken');
-jest.mock('uuid');
-jest.mock('../utils/logger');
-jest.mock('../utils/errors', () => ({
+jest.mock('../db', () => ({
+  __esModule: true,
+  default: jest.fn()
+}));
+
+jest.mock('bcryptjs', () => ({
+  genSalt: jest.fn().mockResolvedValue('salt'),
+  hash: jest.fn().mockResolvedValue('hashedPassword'),
+  compare: jest.fn().mockResolvedValue(true)
+}));
+
+jest.mock('jsonwebtoken', () => ({
+  sign: jest.fn().mockReturnValue('jwt-token'),
+  verify: jest.fn()
+}));
+
+jest.mock('uuid', () => ({
+  v4: jest.fn().mockReturnValue('test-uuid')
+}));
+
+// Mock shared logger to prevent logging during tests
+jest.mock('@smart-home/shared', () => ({
+  ...jest.requireActual('@smart-home/shared'),
+  logger: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn()
+  },
   ConflictError: class extends Error {
     constructor(message: string) {
       super(message);

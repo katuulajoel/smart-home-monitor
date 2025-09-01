@@ -126,9 +126,9 @@ function convertIntentToQueryParams(intent: any): Record<string, any> {
 
   // Map metrics
   if (intent.metrics && Array.isArray(intent.metrics)) {
-    params.metrics = intent.metrics
-      .map(metric => METRIC_MAPPING[metric] || metric)
-      .filter(metric => ['power_consumption', 'voltage', 'current'].includes(metric));
+    params.metrics = (intent.metrics as string[])
+      .map((metric: string) => METRIC_MAPPING[metric] || metric)
+      .filter((metric: string) => ['power_consumption', 'voltage', 'current'].includes(metric));
   }
 
   // Default functions

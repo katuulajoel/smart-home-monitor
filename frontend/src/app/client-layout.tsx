@@ -1,7 +1,7 @@
 'use client';
 
 import { Inter } from 'next/font/google';
-import { AuthProvider, useAuth } from '@/contexts/auth-context';
+import { useAuth } from '@/contexts/auth-context';
 import { useState } from 'react';
 import './globals.css';
 import AIChatPanel from '@/components/ai-chat-panel';

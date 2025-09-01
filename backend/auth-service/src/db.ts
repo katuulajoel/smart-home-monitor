@@ -1,7 +1,7 @@
 import knex, { Knex } from 'knex';
 import { knexSnakeCaseMappers } from 'objection';
 import 'dotenv/config';
-import logger from '@smart-home/shared';
+import { logger } from '@smart-home/shared';
 
 // Database connection configuration
 interface DatabaseConfig extends Knex.Config {

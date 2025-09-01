@@ -1,11 +1,24 @@
 import request from 'supertest';
 import { register, login, logout } from '../../controllers/auth';
-
-// Import mocked modules (mocking is done in setup.ts)
 import db from '../../db';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
+
+// Mock the database and dependencies
+jest.mock('../../db');
+
+// Cast the mocked db to jest.Mock for TypeScript
+type MockedDB = jest.Mock & {
+  (table: string): {
+    where: jest.Mock;
+    first: jest.Mock;
+    insert: jest.Mock;
+    returning: jest.Mock;
+  };
+};
+
+const mockDb = db as unknown as MockedDB;
 
 // Get the global test app factory from setup
 declare const createTestApp: any;
@@ -14,26 +27,44 @@ describe('Auth Controller', () => {
   let app: any;
   
   beforeEach(() => {
-    app = createTestApp(register, login, logout);
     jest.clearAllMocks();
+    // Reset the mock implementation for each test
+    mockDb.mockReset();
+    // Set up default mock implementation for db
+    mockDb.mockImplementation(() => ({
+      where: jest.fn().mockReturnThis(),
+      first: jest.fn().mockResolvedValue(null),
+      insert: jest.fn().mockReturnThis(),
+      returning: jest.fn().mockResolvedValue([{ id: 'test-user-id' }])
+    }));
+    
+    app = createTestApp(register, login, logout);
   });
 
   describe('Registration', () => {
     it('should register a new user successfully', async () => {
-      // Mock no existing user
-      (db as any).mockReturnValueOnce({
-        where: jest.fn().mockReturnThis(),
-        first: jest.fn().mockResolvedValue(null)
-      });
-
-      // Mock user creation
-      (db as any).mockReturnValueOnce({
-        insert: jest.fn().mockReturnThis(),
-        returning: jest.fn().mockResolvedValue([{
-          id: 'user-123',
-          name: 'Test User',
-          email: 'test@example.com'
-        }])
+      // Mock the database chain for checking existing user
+      const mockFirst = jest.fn().mockResolvedValueOnce(null);
+      const mockWhere = jest.fn().mockReturnValue({ first: mockFirst });
+      
+      // Mock the insert operation
+      const mockReturning = jest.fn().mockResolvedValueOnce([{
+        id: 'user-123',
+        name: 'Test User',
+        email: 'test@example.com'
+      }]);
+      
+      const mockInsert = jest.fn().mockReturnValue({ returning: mockReturning });
+      
+      // Set up the mock implementation
+      mockDb.mockImplementation((table) => {
+        if (table === 'users') {
+          return {
+            where: mockWhere,
+            insert: mockInsert
+          };
+        }
+        return {};
       });
 
       // Mock dependencies
@@ -58,13 +89,13 @@ describe('Auth Controller', () => {
 
     it('should fail when user already exists', async () => {
       // Mock existing user
-      (db as any).mockReturnValueOnce({
+      mockDb.mockImplementationOnce(() => ({
         where: jest.fn().mockReturnThis(),
         first: jest.fn().mockResolvedValue({ 
           id: 'existing-user', 
           email: 'test@example.com' 
         })
-      });
+      }));
 
       const response = await request(app)
         .post('/register')
@@ -83,7 +114,7 @@ describe('Auth Controller', () => {
   describe('Login', () => {
     it('should login successfully with valid credentials', async () => {
       // Mock user exists
-      (db as any).mockReturnValueOnce({
+      mockDb.mockImplementationOnce(() => ({
         where: jest.fn().mockReturnThis(),
         first: jest.fn().mockResolvedValue({
           id: 'user-123',
@@ -91,7 +122,7 @@ describe('Auth Controller', () => {
           email: 'test@example.com',
           password: 'hashedPassword'
         })
-      });
+      }));
 
       // Mock password comparison and JWT
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
@@ -112,10 +143,10 @@ describe('Auth Controller', () => {
 
     it('should fail with invalid credentials', async () => {
       // Mock no user found
-      (db as any).mockReturnValueOnce({
+      mockDb.mockImplementationOnce(() => ({
         where: jest.fn().mockReturnThis(),
         first: jest.fn().mockResolvedValue(null)
-      });
+      }));
 
       const response = await request(app)
         .post('/login')

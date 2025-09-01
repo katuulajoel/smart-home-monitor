@@ -16,7 +16,6 @@ module.exports = {
       },
     ],
   },
-  setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts'],
   moduleDirectories: [
     'node_modules',
     '../../node_modules',

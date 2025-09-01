@@ -31,7 +31,7 @@ export const telemetryController = {
             functions = ['avg'],
           } = querySchema.parse(req.query);
       
-          const userId = req.user.id;
+          const userId = req.user?.id;
       
           // choose time bucket
           const unit =
@@ -115,7 +115,7 @@ export const telemetryController = {
     async addTelemetry(req: Request, res: Response): Promise<void> {
         try {
             const { deviceId, timestamp, energyWatts, voltage, current, additional_metrics = {} } = req.body;
-            const userId = req.user.id;
+            const userId = req.user?.id;
 
             // Verify the device belongs to the user
             const deviceCheck = await db('devices')
@@ -139,9 +139,9 @@ export const telemetryController = {
                 .returning(['device_id', 'timestamp', 'power_consumption as energy_watts']);
 
             res.status(201).json({
-                success: true,
+                status: 'success',
                 data: result,
-            });
+            } as ApiResponse);
         } catch (error) {
             logger.error('Error adding telemetry data:', error);
             throw error;
@@ -170,13 +170,12 @@ export const telemetryController = {
             
             const response: ApiResponse = {
                 status: 'success',
-                data: items,
-                meta: {
-                    total: items.length,
-                    limit: Number(limit),
+                data: {
+                    items,
                     hasMore,
                     nextCursor: hasMore && lastItem ? lastItem.timestamp : null,
-                },
+                    limit: Number(limit)
+                }
             };
             
             return res.status(HttpStatus.OK).json(response);
@@ -203,7 +202,13 @@ export const telemetryController = {
             }
 
             return telemetryController.getUserDevicesTelemetrySummary(
-                { ...req, query: { ...req.query, deviceId } } as Request,
+                {
+                    ...req,
+                    query: {
+                        ...req.query,
+                        deviceId
+                    }
+                } as unknown as Request,
                 res
             );
         } catch (error) {
@@ -280,7 +285,7 @@ export const telemetryController = {
             const deviceSummaries = filteredDevices.map(device => {
                 const deviceMetrics = metricsByDevice[device.id] || [];
                 const totalConsumption = deviceMetrics.reduce(
-                    (sum, m) => sum + parseFloat(m.total_energy), 0
+                    (sum: number, m: { total_energy: string }) => sum + parseFloat(m.total_energy), 0
                 );
 
                 return {
@@ -289,9 +294,15 @@ export const telemetryController = {
                     deviceType: device.type,
                     totalConsumption,
                     averageConsumption: deviceMetrics.length > 0 
-                        ? deviceMetrics.reduce((sum, m) => sum + parseFloat(m.avg_energy), 0) / deviceMetrics.length
+                        ? deviceMetrics.reduce((sum: number, m: { avg_energy: string }) => 
+                            sum + parseFloat(m.avg_energy), 0) / deviceMetrics.length
                         : 0,
-                    dataPoints: deviceMetrics.map(m => ({
+                    dataPoints: deviceMetrics.map((m: { 
+                        day: string; 
+                        avg_energy: string; 
+                        total_energy: string; 
+                        readings_count: number 
+                    }) => ({
                         timestamp: m.day,
                         avgEnergy: m.avg_energy,
                         totalEnergy: m.total_energy,
@@ -301,7 +312,7 @@ export const telemetryController = {
             });
 
             const totalConsumption = deviceSummaries.reduce(
-                (sum, device) => sum + device.totalConsumption, 0
+                (sum: number, device: { totalConsumption: number }) => sum + device.totalConsumption, 0
             );
 
             const response: ApiResponse = {
@@ -327,21 +338,21 @@ export const telemetryController = {
 
     async getDevices(req: Request, res: Response) {
         try {
-            const userId = req.user.id;
+            const userId = req.user?.id;
             
             const devices = await db('devices')
                 .where('user_id', userId)
                 .select('id', 'name', 'type', 'metadata', 'created_at as createdAt');
 
             return res.status(HttpStatus.OK).json({
-                success: true,
+                status: 'success',
                 data: devices,
                 message: 'Devices retrieved successfully'
             } as ApiResponse);
         } catch (error) {
             logger.error('Error getting devices:', error);
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-                success: false,
+                status: 'error',
                 message: 'Failed to retrieve devices'
             } as ApiResponse);
         }
@@ -350,7 +361,7 @@ export const telemetryController = {
     async getDeviceById(req: Request, res: Response) {
         try {
             const { id } = req.params;
-            const userId = req.user.id;
+            const userId = req.user?.id;
 
             const device = await db('devices')
                 .where('id', id)
@@ -360,21 +371,21 @@ export const telemetryController = {
 
             if (!device) {
                 return res.status(HttpStatus.NOT_FOUND).json({
-                    success: false,
+                    status: 'error',
                     message: 'Device not found or access denied'
-                });
+                } as ApiResponse);
             }
 
             return res.status(HttpStatus.OK).json({
-                success: true,
+                status: 'success',
                 data: device
-            });
+            } as ApiResponse);
         } catch (error) {
             logger.error('Error fetching device details:', error);
             return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
-                success: false,
+                status: 'error',
                 message: 'Failed to fetch device details'
-            });
+            } as ApiResponse);
         }
     },
 };

@@ -12,7 +12,7 @@
   "scripts": {
     "install:all": "npm install",
     "build:shared": "cd backend/shared && npm install && npm run build",
-    "build": "npm run build:shared && npm run build:auth",
+    "build": "npm run build:shared && npm run build:auth && npm run build:telemetry && npm run build:chat && npm run build:frontend",
     "test:all": "npm test --workspaces --if-present",
     
     "dev:frontend": "cd frontend && npm run dev",

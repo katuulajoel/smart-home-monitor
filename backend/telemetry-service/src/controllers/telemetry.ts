@@ -312,4 +312,26 @@ export const telemetryController = {
             throw error;
         }
     },
+
+    async getDevices(req: Request, res: Response) {
+        try {
+            const userId = req.user.id;
+            
+            const devices = await db('devices')
+                .where('user_id', userId)
+                .select('id', 'name', 'type', 'metadata', 'created_at as createdAt');
+
+            return res.status(HttpStatus.OK).json({
+                success: true,
+                data: devices,
+                message: 'Devices retrieved successfully'
+            } as ApiResponse);
+        } catch (error) {
+            logger.error('Error getting devices:', error);
+            return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+                success: false,
+                message: 'Failed to retrieve devices'
+            } as ApiResponse);
+        }
+    },
 };

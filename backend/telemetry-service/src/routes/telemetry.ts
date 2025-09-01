@@ -283,4 +283,43 @@ router.get(
   asyncHandler(telemetryController.getUserDevicesTelemetrySummary)
 );
 
+/**
+ * @swagger
+ * /telemetry/devices:
+ *   get:
+ *     summary: Get all devices for the authenticated user
+ *     tags: [Telemetry]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: List of devices
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                       name:
+ *                         type: string
+ *                       type:
+ *                         type: string
+ *                       metadata:
+ *                         type: object
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                 message:
+ *                   type: string
+ */
+router.get('/devices', asyncHandler(telemetryController.getDevices));
+
 export default router;

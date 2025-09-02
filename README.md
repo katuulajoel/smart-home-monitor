@@ -47,6 +47,10 @@ A full-stack application for monitoring and analyzing home energy consumption th
 
 4. Access the application at `http://localhost:3000`
 
+### Project Management
+
+Track the project progress and time estimates in the [Project Management Table](https://docs.google.com/spreadsheets/d/1bgOTq2o4lau2fnLnn4eWhp9U0KJRm01TVepjkribAxg/edit?usp=sharing).
+
 ### Option 2: Manual Setup
 
 1. Clone the repository and install dependencies:

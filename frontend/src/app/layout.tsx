@@ -1,6 +1,7 @@
 // src/app/layout.tsx
 import type { Metadata } from 'next';
 import { AuthProvider } from '@/contexts/auth-context';
+import { SettingsProvider } from '@/contexts/settings-context';
 import ClientLayout from './client-layout';
 import './globals.css';
 
@@ -18,7 +19,9 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AuthProvider>
-          <ClientLayout>{children}</ClientLayout>
+          <SettingsProvider>
+            <ClientLayout>{children}</ClientLayout>
+          </SettingsProvider>
         </AuthProvider>
       </body>
     </html>

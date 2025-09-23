@@ -27,6 +27,7 @@ interface ChatRequest extends Request {
   body: {
     message: string;
     sessionId?: string;
+    model?: string;
   };
   headers: {
     authorization?: string;
@@ -141,7 +142,7 @@ function convertIntentToQueryParams(intent: any): Record<string, any> {
  * Process a chat message, get LLM intent, fetch telemetry if needed, and respond
  */
 export const processMessage = async (req: ChatRequest, res: Response, next: NextFunction) => {
-  const { message, sessionId } = req.body;
+  const { message, sessionId, model } = req.body;
   const userId = req.user.id;
   const session = sessionId || uuidv4();
 
@@ -153,7 +154,7 @@ export const processMessage = async (req: ChatRequest, res: Response, next: Next
     const history = await getConversationHistory(session);
 
     // Get AI response with telemetry integration
-    const aiResponse = await generateAIResponse(message, history, userId, req);
+    const aiResponse = await generateAIResponse(message, history, userId, req, model);
 
     // Save AI response to database
     await saveMessage(session, 'assistant', aiResponse, userId);
@@ -221,7 +222,10 @@ async function getConversationHistory(sessionId: string): Promise<Message[]> {
     .orderBy('created_at', 'asc');
 }
 
-async function generateAIResponse(message: string, history: Message[], userId: string, req: ChatRequest): Promise<string> {
+async function generateAIResponse(message: string, history: Message[], userId: string, req: ChatRequest, requestedModel?: string): Promise<string> {
+  // Validate and set the model to use
+  const availableModels = ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo'];
+  const modelToUse = requestedModel && availableModels.includes(requestedModel) ? requestedModel : 'gpt-3.5-turbo';
   // Prepare messages for OpenAI including system prompt and history
   const messages: Array<{role: MessageRole; content: string}> = [
     { role: 'system', content: SYSTEM_PROMPT },
@@ -258,7 +262,7 @@ async function generateAIResponse(message: string, history: Message[], userId: s
     For relative dates like "last week", calculate the actual dates. Use current date as reference: ${new Date().toISOString()}`;
 
     const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: modelToUse,
       messages: [
         ...messages,
         { role: 'system', content: intentPrompt }
@@ -275,16 +279,16 @@ async function generateAIResponse(message: string, history: Message[], userId: s
       
       // Generate response with telemetry data
       const response = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
+        model: modelToUse,
         messages: [
           ...messages,
-          { 
-            role: 'system', 
-            content: `Here's the telemetry data for the user's query: ${JSON.stringify(telemetryData)}. 
-            
+          {
+            role: 'system',
+            content: `Here's the telemetry data for the user's query: ${JSON.stringify(telemetryData)}.
+
             Provide a concise response with just the key data points from the telemetry data.
             Do not include any recommendations or additional advice.
-            Keep the response under 2 sentences if possible.` 
+            Keep the response under 2 sentences if possible.`
           }
         ],
         temperature: 0.3,
@@ -296,7 +300,7 @@ async function generateAIResponse(message: string, history: Message[], userId: s
 
     // If no telemetry needed, just return a normal chat response
     const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: modelToUse,
       messages: messages,
       temperature: 0.7,
       max_tokens: 500,

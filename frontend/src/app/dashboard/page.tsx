@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { format, subDays, subMonths, subYears } from 'date-fns';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import ProtectedRoute from '@/components/protected-route';
 import DeviceList from '@/components/device-list';
 import { telemetryClient } from '@/lib/api-client';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface DataPoint {
   timestamp: string;
@@ -87,9 +88,30 @@ const DateRangeSelector = ({
         }}
       >
         <TabsList>
-          <TabsTrigger value="week">Past Week</TabsTrigger>
-          <TabsTrigger value="month">Past Month</TabsTrigger>
-          <TabsTrigger value="year">Past Year</TabsTrigger>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TabsTrigger value="week">Past Week</TabsTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>View energy data from the last 7 days</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TabsTrigger value="month">Past Month</TabsTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>View energy data from the last 30 days</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <TabsTrigger value="year">Past Year</TabsTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>View energy data from the last 365 days</p>
+            </TooltipContent>
+          </Tooltip>
         </TabsList>
       </Tabs>
     );
@@ -103,22 +125,44 @@ const EnergySummaryCard = ({ data }: { data: SummaryData }) => {
       </CardHeader>
       <CardContent>
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-500">Total Consumption</p>
-            <p className="text-2xl font-bold">
-              {data.totalConsumption.toFixed(2)} <span className="text-sm font-normal">kWh</span>
-            </p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-500">Devices</p>
-            <p className="text-2xl font-bold">{data.totalDevices}</p>
-          </div>
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-gray-500">Period</p>
-            <p className="text-sm">
-              {formatDate(data.meta.startDate)} - {formatDate(data.meta.endDate)}
-            </p>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="space-y-2 cursor-help">
+                <p className="text-sm font-medium text-gray-500">Total Consumption</p>
+                <p className="text-2xl font-bold">
+                  {data.totalConsumption.toFixed(2)} <span className="text-sm font-normal">kWh</span>
+                </p>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Total energy consumed by all devices during this period</p>
+              <p className="text-xs mt-1">Measured in kilowatt-hours (kWh)</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="space-y-2 cursor-help">
+                <p className="text-sm font-medium text-gray-500">Devices</p>
+                <p className="text-2xl font-bold">{data.totalDevices}</p>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Number of smart devices connected to your energy monitor</p>
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="space-y-2 cursor-help">
+                <p className="text-sm font-medium text-gray-500">Period</p>
+                <p className="text-sm">
+                  {formatDate(data.meta.startDate)} - {formatDate(data.meta.endDate)}
+                </p>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Date range for the displayed energy data</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </CardContent>
     </Card>
@@ -162,7 +206,15 @@ const EnergyUsageChart = ({ data }: { data: SummaryData }) => {
   return (
     <Card className="mt-6">
       <CardHeader>
-        <CardTitle>Daily Average Energy Consumption (kWh)</CardTitle>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <CardTitle className="cursor-help">Daily Average Energy Consumption (kWh)</CardTitle>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Shows daily average power consumption for each device</p>
+            <p className="text-xs mt-1">Hover over lines to see detailed values</p>
+          </TooltipContent>
+        </Tooltip>
       </CardHeader>
       <CardContent>
         <div className="h-[400px] w-full">
@@ -179,7 +231,7 @@ const EnergyUsageChart = ({ data }: { data: SummaryData }) => {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis />
-              <Tooltip />
+              <RechartsTooltip />
               <Legend />
               {deviceNames.map((device, index) => (
                 <Line

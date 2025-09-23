@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { telemetryClient } from '@/lib/api-client';
 import Link from 'next/link';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Device {
   id: string;
@@ -62,22 +63,46 @@ export default function DeviceList() {
                     {device.name}
                   </p>
                   <div className="ml-2 flex-shrink-0 flex">
-                    <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                      {device.type}
-                    </p>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <p className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800 cursor-help">
+                          {device.type}
+                        </p>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Device type: {device.type}</p>
+                        <p className="text-xs mt-1">Click to view detailed energy data</p>
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                 </div>
                 {device.lastReading && (
                   <div className="mt-2 sm:flex sm:justify-between">
                     <div className="sm:flex">
-                      <p className="flex items-center text-sm text-gray-500">
-                        {device.lastReading.energyWatts} W
-                      </p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="flex items-center text-sm text-gray-500 cursor-help">
+                            {device.lastReading.energyWatts} W
+                          </p>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Current power consumption</p>
+                          <p className="text-xs mt-1">Measured in Watts (W)</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                     <div className="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
-                      <p>
-                        Last reading: {new Date(device.lastReading.timestamp).toLocaleString()}
-                      </p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <p className="cursor-help">
+                            Last reading: {new Date(device.lastReading.timestamp).toLocaleString()}
+                          </p>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>When this data was last updated</p>
+                          <p className="text-xs mt-1">Devices report every few minutes</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 )}

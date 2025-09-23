@@ -4,24 +4,32 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { chatClient } from '@/lib/api-client';
+import { useSettings } from '@/contexts/settings-context';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Message {
   id: string;
   content: string;
   role: 'user' | 'assistant';
   createdAt: string;
-  timestamp?: Date; // For backward compatibility
+  timestamp?: Date;
 }
 
 const MESSAGES_PER_PAGE = 10;
 
 export default function AIChatPanel({ onClose }: { onClose: () => void }) {
+  const { selectedModel } = useSettings();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
-  const messagesStartRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [sessionId] = useState<string>(() => uuidv4());
 
   const fetchChatHistory = useCallback(async (before?: string) => {
@@ -36,13 +44,12 @@ export default function AIChatPanel({ onClose }: { onClose: () => void }) {
 
       const { data } = await chatClient.get(`/history?${params.toString()}`);
       
-      // Transform API response to match our Message type
       const formattedMessages = data.messages
         .map((msg: any) => ({
           ...msg,
           timestamp: new Date(msg.createdAt)
         }))
-        .reverse(); // Reverse to maintain chronological order
+        .reverse();
 
       setMessages(prev => before ? [...formattedMessages, ...prev] : formattedMessages);
       setHasMore(data.hasMore);
@@ -52,33 +59,20 @@ export default function AIChatPanel({ onClose }: { onClose: () => void }) {
   }, []);
 
   useEffect(() => {
-    // Load initial messages
     fetchChatHistory();
   }, [fetchChatHistory]);
 
-  const loadMoreMessages = async () => {
-    if (isLoadingMore || !hasMore || messages.length === 0) return;
+  const loadMoreMessages = useCallback(() => {
+    if (messages.length === 0 || !hasMore) return;
     
-    const container = messagesStartRef.current;
-    if (!container) return;
-    
-    // Save current scroll position and height
-    const scrollPosition = container.scrollTop;
-    const scrollHeight = container.scrollHeight;
-    
-    setIsLoadingMore(true);
-    await fetchChatHistory(messages[0].createdAt);
-    
-    // Restore scroll position after messages are loaded
-    requestAnimationFrame(() => {
-      if (container) {
-        const newScrollHeight = container.scrollHeight;
-        container.scrollTop = newScrollHeight - scrollHeight + scrollPosition;
-      }
-    });
-    
-    setIsLoadingMore(false);
-  };
+    const oldestMessage = messages[0];
+    if (oldestMessage?.createdAt) {
+      setIsLoadingMore(true);
+      fetchChatHistory(oldestMessage.createdAt).finally(() => {
+        setIsLoadingMore(false);
+      });
+    }
+  }, [messages, hasMore, fetchChatHistory]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,6 +92,7 @@ export default function AIChatPanel({ onClose }: { onClose: () => void }) {
     try {
       const { data } = await chatClient.post('/message', {
         message: input,
+        model: selectedModel.id,
         sessionId,
       });
 
@@ -111,94 +106,157 @@ export default function AIChatPanel({ onClose }: { onClose: () => void }) {
       setMessages(prev => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Error sending message:', error);
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: 'Sorry, I encountered an error. Please try again.',
-        role: 'assistant',
-        createdAt: new Date().toISOString(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
+  useEffect(() => {
+    // Scroll to bottom when messages change
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const getInitials = (name: string) => {
+    return name.charAt(0).toUpperCase();
+  };
+
   return (
-    <div className="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-xl flex flex-col z-50">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-        <h3 className="text-lg font-medium text-gray-900">AI Assistant</h3>
-        <button
-          onClick={onClose}
-          className="text-gray-400 hover:text-gray-500 focus:outline-none"
-        >
-          <span className="sr-only">Close panel</span>
-          <svg
-            className="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M6 18L18 6M6 6l12 12"
-            />
-          </svg>
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4" ref={messagesStartRef}>
-        {hasMore && (
-          <div className="flex justify-center my-2">
-            <button
-              onClick={loadMoreMessages}
-              disabled={isLoadingMore}
-              className="text-sm text-blue-600 hover:text-blue-800 disabled:opacity-50"
-            >
-              {isLoadingMore ? 'Loading...' : 'Load more messages'}
-            </button>
+    <Card className="fixed bottom-4 right-4 w-96 max-h-[80vh] flex flex-col z-50">
+      <CardHeader className="bg-primary text-primary-foreground p-4">
+        <div className="flex justify-between items-start gap-2">
+          <div>
+            <CardTitle className="text-lg">Ask AI</CardTitle>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <p className="text-xs text-primary-foreground/80 cursor-help">
+                  Using: {selectedModel.name} ({selectedModel.provider})
+                </p>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Current AI model for conversations</p>
+                <p className="text-xs mt-1">Change in Settings</p>
+              </TooltipContent>
+            </Tooltip>
           </div>
-        )}
-        
-        {messages.map((message) => {
-          const timestamp = message.timestamp || new Date(message.createdAt);
-          return (
-            <div
-              key={message.id}
-              className={`mb-4 p-3 rounded-lg ${
-                message.role === 'user' 
-                  ? 'bg-blue-50 text-blue-800 ml-8' 
-                  : 'bg-gray-50 text-gray-800 mr-8'
-              }`}
-            >
-              <div className="flex justify-between items-baseline mb-1">
-                <span className="font-medium">
-                  {message.role === 'user' ? 'You' : 'Assistant'}
-                </span>
-                <span className="text-xs text-gray-500">
-                  {new Date(timestamp).toLocaleString()}
-                </span>
-              </div>
-              <p className="whitespace-pre-wrap">{message.content}</p>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClose}
+                className="h-8 w-8 text-primary-foreground hover:bg-primary/90"
+              >
+                <span className="sr-only">Close</span>
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Close AI chat panel</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="p-0 flex-1 overflow-hidden">
+        <ScrollArea className="h-[400px] p-4">
+          {hasMore && (
+            <div className="flex justify-center my-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={loadMoreMessages}
+                    disabled={isLoadingMore}
+                    className="text-xs"
+                  >
+                    {isLoadingMore ? 'Loading...' : 'Load more messages'}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Load previous conversation history</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
-          );
-        })}
-      </div>
-      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a question..."
-          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="mt-2 w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {isLoading ? 'Thinking...' : 'Ask'}
-        </button>
-      </form>
-    </div>
+          )}
+          
+          <div className="space-y-4">
+            {messages.map((message) => {
+              const timestamp = message.timestamp || new Date(message.createdAt);
+              const isUser = message.role === 'user';
+              
+              return (
+                <div
+                  key={message.id}
+                  className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
+                >
+                  <Avatar className="h-8 w-8 mt-1">
+                    <AvatarFallback className={isUser ? 'bg-primary text-primary-foreground' : 'bg-secondary'}> 
+                      {isUser ? 'U' : 'AI'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className={`max-w-[80%] p-3 rounded-lg ${
+                    isUser 
+                      ? 'bg-primary text-primary-foreground' 
+                      : 'bg-muted'
+                  }`}>
+                    <div className="flex justify-between items-baseline gap-2 mb-1">
+                      <span className="text-sm font-medium">
+                        {isUser ? 'You' : 'Assistant'}
+                      </span>
+                      <span className="text-xs opacity-70">
+                        {new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p className="whitespace-pre-wrap text-sm">{message.content}</p>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
+      </CardContent>
+      
+      <CardFooter className="p-4 border-t">
+        <form onSubmit={handleSubmit} className="w-full space-y-2">
+          <div className="flex gap-2">
+            <Input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask a question..."
+              className="flex-1"
+              disabled={isLoading}
+            />
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="submit"
+                  disabled={isLoading || !input.trim()}
+                  className="shrink-0"
+                >
+                  {isLoading ? '...' : 'Send'}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isLoading ? 'AI is thinking...' : input.trim() ? 'Send message' : 'Type a message first'}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+        </form>
+      </CardFooter>
+    </Card>
   );
 }

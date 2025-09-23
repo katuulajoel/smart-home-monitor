@@ -39,6 +39,10 @@ router.use(authenticate);
  *                 type: string
  *                 format: uuid
  *                 description: Optional session ID for multi-turn conversations
+ *               model:
+ *                 type: string
+ *                 enum: [gpt-3.5-turbo, gpt-4, gpt-4-turbo]
+ *                 description: Optional AI model to use for the response
  *     responses:
  *       200:
  *         description: Chat response
@@ -64,6 +68,7 @@ router.post(
   validate([
     body('message').trim().notEmpty().withMessage('Message is required'),
     body('sessionId').optional().isUUID().withMessage('Invalid session ID format'),
+    body('model').optional().isIn(['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo']).withMessage('Invalid model format'),
   ]),
   asyncHandler(chatController.processMessage)
 );

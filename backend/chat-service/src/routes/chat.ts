@@ -68,7 +68,8 @@ router.post(
   validate([
     body('message').trim().notEmpty().withMessage('Message is required'),
     body('sessionId').optional().isUUID().withMessage('Invalid session ID format'),
-    body('model').optional().isIn(['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo']).withMessage('Invalid model format'),
+    body('model').optional().isString().trim().notEmpty().withMessage('Model must be a non-empty string'),
+    body('provider').optional().isIn(['openai', 'ollama']).withMessage('Invalid provider. Must be one of: openai, ollama'),
   ]),
   asyncHandler(chatController.processMessage)
 );
@@ -128,6 +129,64 @@ router.get(
     query('before').optional().isISO8601().withMessage('Invalid date format'),
   ]),
   asyncHandler(chatController.getChatHistory)
+);
+
+/**
+ * @swagger
+ * /chat/models:
+ *   get:
+ *     summary: Get available AI models and providers
+ *     tags: [Chat]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Available models and providers
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 providers:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                         description: Provider name
+ *                       status:
+ *                         type: string
+ *                         enum: [healthy, unhealthy, unknown]
+ *                         description: Provider health status
+ *                       models:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             id:
+ *                               type: string
+ *                               description: Model identifier
+ *                             name:
+ *                               type: string
+ *                               description: Display name
+ *                             size:
+ *                               type: string
+ *                               description: Model size (for local models)
+ *                             description:
+ *                               type: string
+ *                               description: Model description
+ *                             capabilities:
+ *                               type: array
+ *                               items:
+ *                                 type: string
+ *                               description: Model capabilities
+ *       401:
+ *         description: Unauthorized
+ */
+router.get(
+  '/models',
+  asyncHandler(chatController.getAvailableModels)
 );
 
 export default router;

@@ -93,6 +93,7 @@ export default function AIChatPanel({ onClose }: { onClose: () => void }) {
       const { data } = await chatClient.post('/message', {
         message: input,
         model: selectedModel.id,
+        provider: selectedModel.provider,
         sessionId,
       });
 

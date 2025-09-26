@@ -1,9 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import OpenAI from 'openai';
 import db from '../db';
 import axios from 'axios';
 import { logger } from '@smart-home/shared';
+import { ProviderFactory } from '../providers/ProviderFactory';
+import { ChatMessage } from '../providers/types';
+import { getDefaultProviderConfig } from '../config/providers';
 
 // Configuration
 const TELEMETRY_SERVICE_URL = process.env.NODE_ENV === 'production'
@@ -28,16 +30,16 @@ interface ChatRequest extends Request {
     message: string;
     sessionId?: string;
     model?: string;
+    provider?: string;
   };
   headers: {
     authorization?: string;
   };
 }
 
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize Provider Factory with validated configuration
+const providerConfig = getDefaultProviderConfig();
+const providerFactory = new ProviderFactory(providerConfig);
 
 // System prompt for the AI assistant
 const SYSTEM_PROMPT = `You are an AI assistant for a smart home energy monitoring system. 
@@ -142,7 +144,7 @@ function convertIntentToQueryParams(intent: any): Record<string, any> {
  * Process a chat message, get LLM intent, fetch telemetry if needed, and respond
  */
 export const processMessage = async (req: ChatRequest, res: Response, next: NextFunction) => {
-  const { message, sessionId, model } = req.body;
+  const { message, sessionId, model, provider } = req.body;
   const userId = req.user.id;
   const session = sessionId || uuidv4();
 
@@ -153,17 +155,17 @@ export const processMessage = async (req: ChatRequest, res: Response, next: Next
     // Get conversation history
     const history = await getConversationHistory(session);
 
-    // Get AI response with telemetry integration
-    const aiResponse = await generateAIResponse(message, history, userId, req, model);
+    // Get AI response using provider pattern
+    const aiResponse = await generateAIResponseWithProvider(message, history, userId, req, model, provider);
 
     // Save AI response to database
     await saveMessage(session, 'assistant', aiResponse, userId);
 
     // Return response with session ID for new sessions
     if (!sessionId) {
-      return res.status(200).json({ 
-        response: aiResponse, 
-        sessionId: session 
+      return res.status(200).json({
+        response: aiResponse,
+        sessionId: session
       });
     }
 
@@ -344,7 +346,69 @@ async function fetchTelemetryData(userId: string, intentQuery: any, authHeader?:
   }
 }
 
+async function generateAIResponseWithProvider(
+  message: string,
+  history: Message[],
+  userId: string,
+  req: ChatRequest,
+  requestedModel?: string,
+  requestedProvider?: string
+): Promise<string> {
+  try {
+    // Get the provider (default to openai if not specified)
+    const providerName = requestedProvider || 'openai';
+    const provider = providerFactory.getProvider(providerName);
+
+    // Check if provider exists and is available
+    if (!provider) {
+      logger.error(`Provider "${providerName}" not found or disabled`);
+      throw new Error('Selected AI provider is not available');
+    }
+
+    // Use the requested model or default to first available model for the provider
+    const availableModels = await provider.getAvailableModels();
+    const modelToUse = requestedModel || availableModels[0]?.id || 'gpt-3.5-turbo';
+
+    // Convert history to the provider's expected format
+    const chatHistory: ChatMessage[] = [
+      { role: 'system', content: SYSTEM_PROMPT },
+      ...history.map(h => ({
+        role: h.role as 'user' | 'assistant' | 'system',
+        content: h.content
+      })),
+      { role: 'user', content: message }
+    ];
+
+    // Generate response using the provider
+    const response = await provider.chat(chatHistory, {
+      model: modelToUse,
+      temperature: 0.7,
+      maxTokens: 500
+    });
+
+    return response.content;
+  } catch (error) {
+    logger.error('Error generating AI response with provider:', error instanceof Error ? error.message : 'Unknown error');
+    return 'Sorry, I encountered an error processing your request. Please try again.';
+  }
+}
+
+/**
+ * Get available models from all providers
+ */
+export const getAvailableModels = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const providers = await providerFactory.getAllProviders();
+
+    res.status(200).json({ providers });
+  } catch (error) {
+    logger.error('Error getting available models:', error instanceof Error ? error.message : 'Unknown error');
+    next(error);
+  }
+};
+
 export const chatController = {
   processMessage,
-  getChatHistory
+  getChatHistory,
+  getAvailableModels
 };

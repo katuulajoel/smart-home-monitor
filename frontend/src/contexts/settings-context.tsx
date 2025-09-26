@@ -1,84 +1,207 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import { createContext, useContext, ReactNode, useState, useEffect, useMemo, useCallback } from 'react';
+import { chatClient } from '@/lib/api-client';
 
 export interface AIModel {
   id: string;
   name: string;
   provider: string;
-  description: string;
+  description?: string;
+  size?: string;
+  capabilities?: string[];
 }
 
-export const AVAILABLE_MODELS: AIModel[] = [
+export interface AIProvider {
+  name: string;
+  status: 'healthy' | 'unhealthy' | 'unknown';
+  models: AIModel[];
+}
+
+export interface ModelsResponse {
+  providers: AIProvider[];
+}
+
+// Fallback models in case API is unavailable
+const FALLBACK_MODELS: AIModel[] = [
   {
     id: 'gpt-3.5-turbo',
     name: 'GPT-3.5 Turbo',
-    provider: 'OpenAI',
+    provider: 'openai',
     description: 'Fast and efficient model for most tasks'
   },
   {
-    id: 'gpt-4',
-    name: 'GPT-4',
-    provider: 'OpenAI',
-    description: 'More capable model with better reasoning'
+    id: 'llama2',
+    name: 'Llama 2',
+    provider: 'ollama',
+    description: 'Meta\'s open source language model'
   },
   {
-    id: 'gpt-4-turbo',
-    name: 'GPT-4 Turbo',
-    provider: 'OpenAI',
-    description: 'Latest GPT-4 model with improved performance'
+    id: 'mistral',
+    name: 'Mistral',
+    provider: 'ollama',
+    description: 'Efficient open source model'
+  }
+];
+
+// Fallback providers in case API is unavailable
+const FALLBACK_PROVIDERS: AIProvider[] = [
+  {
+    name: 'openai',
+    status: 'unknown',
+    models: [
+      {
+        id: 'gpt-3.5-turbo',
+        name: 'GPT-3.5 Turbo',
+        provider: 'openai',
+        description: 'Fast and efficient model for most tasks'
+      }
+    ]
+  },
+  {
+    name: 'ollama',
+    status: 'unknown',
+    models: [
+      {
+        id: 'llama2',
+        name: 'Llama 2',
+        provider: 'ollama',
+        description: 'Meta\'s open source language model'
+      },
+      {
+        id: 'mistral',
+        name: 'Mistral',
+        provider: 'ollama',
+        description: 'Efficient open source model'
+      }
+    ]
   }
 ];
 
 interface SettingsContextType {
   selectedModel: AIModel;
   setSelectedModel: (model: AIModel) => void;
+  availableModels: AIModel[];
+  providers: AIProvider[];
   isLoading: boolean;
+  refreshModels: () => Promise<void>;
+  error: string | null;
+  hasTriedFetchingModels: boolean;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
-  const [selectedModel, setSelectedModelState] = useState<AIModel>(AVAILABLE_MODELS[0]);
+  const [selectedModel, setSelectedModelState] = useState<AIModel>(FALLBACK_MODELS[0]);
+  const [availableModels, setAvailableModels] = useState<AIModel[]>(FALLBACK_MODELS);
+  const [providers, setProviders] = useState<AIProvider[]>(FALLBACK_PROVIDERS);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hasTriedFetchingModels, setHasTriedFetchingModels] = useState(false);
+
+  const fetchModels = useCallback(async () => {
+    setHasTriedFetchingModels(true);
+    try {
+      const response = await chatClient.get('/models');
+      const data: ModelsResponse = response.data;
+
+      // Flatten all models from all providers
+      const allModels: AIModel[] = data.providers.flatMap(provider =>
+        provider.models.map(model => ({
+          ...model,
+          provider: provider.name,
+        }))
+      );
+
+      setProviders(data.providers);
+      setAvailableModels(allModels.length > 0 ? allModels : FALLBACK_MODELS);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching models:', err);
+      setError('Failed to fetch available models');
+      setAvailableModels(FALLBACK_MODELS);
+      setProviders(FALLBACK_PROVIDERS);
+    }
+  }, []);
+
+  const refreshModels = useCallback(async () => {
+    setIsLoading(true);
+    await fetchModels();
+    setIsLoading(false);
+  }, [fetchModels]);
 
   useEffect(() => {
-    const loadSettings = () => {
+    const loadSettings = async () => {
+      setIsLoading(true);
+
+      // Only fetch models if user has a token (is authenticated)
+      const token = localStorage.getItem('token');
+      if (token) {
+        await fetchModels();
+      }
+
+      // Load saved model preference
       try {
         const savedModelId = localStorage.getItem('ai-model-preference');
-        if (savedModelId) {
-          const model = AVAILABLE_MODELS.find(m => m.id === savedModelId);
-          if (model) {
-            setSelectedModelState(model);
-          }
+        const savedProvider = localStorage.getItem('ai-provider-preference');
+
+        if (savedModelId && savedProvider) {
+          // Wait a bit for models to be set
+          setTimeout(() => {
+            setAvailableModels(current => {
+              const model = current.find(m =>
+                m.id === savedModelId && m.provider === savedProvider
+              );
+              if (model) {
+                setSelectedModelState(model);
+              }
+              return current;
+            });
+          }, 100);
         }
       } catch (error) {
         console.error('Error loading settings:', error);
-      } finally {
-        setIsLoading(false);
       }
+
+      setIsLoading(false);
     };
 
     loadSettings();
   }, []);
 
-  const setSelectedModel = (model: AIModel) => {
+  const setSelectedModel = useCallback((model: AIModel) => {
     try {
       localStorage.setItem('ai-model-preference', model.id);
+      localStorage.setItem('ai-provider-preference', model.provider);
       setSelectedModelState(model);
     } catch (error) {
       console.error('Error saving model preference:', error);
     }
-  };
+  }, []);
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    selectedModel,
+    setSelectedModel,
+    availableModels,
+    providers,
+    isLoading,
+    refreshModels,
+    error,
+    hasTriedFetchingModels,
+  }), [
+    selectedModel,
+    setSelectedModel,
+    availableModels,
+    providers,
+    isLoading,
+    refreshModels,
+    error,
+    hasTriedFetchingModels,
+  ]);
 
   return (
-    <SettingsContext.Provider
-      value={{
-        selectedModel,
-        setSelectedModel,
-        isLoading,
-      }}
-    >
+    <SettingsContext.Provider value={contextValue}>
       {children}
     </SettingsContext.Provider>
   );

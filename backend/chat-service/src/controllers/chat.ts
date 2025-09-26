@@ -359,6 +359,12 @@ async function generateAIResponseWithProvider(
     const providerName = requestedProvider || 'openai';
     const provider = providerFactory.getProvider(providerName);
 
+    // Check if provider exists and is available
+    if (!provider) {
+      logger.error(`Provider "${providerName}" not found or disabled`);
+      throw new Error('Selected AI provider is not available');
+    }
+
     // Use the requested model or default to first available model for the provider
     const availableModels = await provider.getAvailableModels();
     const modelToUse = requestedModel || availableModels[0]?.id || 'gpt-3.5-turbo';

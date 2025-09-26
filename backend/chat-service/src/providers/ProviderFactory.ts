@@ -89,14 +89,22 @@ export class ProviderFactory {
   async getAllProviderStatuses(): Promise<ProviderStatus[]> {
     const statusPromises = Array.from(this.providers.values()).map(async (provider) => {
       try {
-        // Add timeout to prevent hanging
-        const timeoutPromise = new Promise<ProviderStatus>((_, reject) =>
-          setTimeout(() => reject(new Error('Status check timeout')), 10000)
-        );
+        // Add timeout to prevent hanging with proper cleanup
+        let timeoutId: NodeJS.Timeout;
+        const timeoutPromise = new Promise<ProviderStatus>((_, reject) => {
+          timeoutId = setTimeout(() => reject(new Error('Status check timeout')), 10000);
+        });
         
         const statusPromise = provider.getStatus();
         
-        return await Promise.race([statusPromise, timeoutPromise]);
+        const result = await Promise.race([statusPromise, timeoutPromise]);
+        
+        // Clear the timeout if the status check completed first
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+        }
+        
+        return result;
       } catch (error) {
         return {
           name: provider.getName(),

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, ReactNode, useState, useEffect } from 'react';
+import { createContext, useContext, ReactNode, useState, useEffect, useMemo, useCallback } from 'react';
 import { chatClient } from '@/lib/api-client';
 
 export interface AIModel {
@@ -99,7 +99,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [hasTriedFetchingModels, setHasTriedFetchingModels] = useState(false);
 
-  const fetchModels = async () => {
+  const fetchModels = useCallback(async () => {
     setHasTriedFetchingModels(true);
     try {
       const response = await chatClient.get('/models');
@@ -122,13 +122,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setAvailableModels(FALLBACK_MODELS);
       setProviders(FALLBACK_PROVIDERS);
     }
-  };
+  }, []);
 
-  const refreshModels = async () => {
+  const refreshModels = useCallback(async () => {
     setIsLoading(true);
     await fetchModels();
     setIsLoading(false);
-  };
+  }, [fetchModels]);
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -169,7 +169,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     loadSettings();
   }, []);
 
-  const setSelectedModel = (model: AIModel) => {
+  const setSelectedModel = useCallback((model: AIModel) => {
     try {
       localStorage.setItem('ai-model-preference', model.id);
       localStorage.setItem('ai-provider-preference', model.provider);
@@ -177,21 +177,31 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error saving model preference:', error);
     }
-  };
+  }, []);
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    selectedModel,
+    setSelectedModel,
+    availableModels,
+    providers,
+    isLoading,
+    refreshModels,
+    error,
+    hasTriedFetchingModels,
+  }), [
+    selectedModel,
+    setSelectedModel,
+    availableModels,
+    providers,
+    isLoading,
+    refreshModels,
+    error,
+    hasTriedFetchingModels,
+  ]);
 
   return (
-    <SettingsContext.Provider
-      value={{
-        selectedModel,
-        setSelectedModel,
-        availableModels,
-        providers,
-        isLoading,
-        refreshModels,
-        error,
-        hasTriedFetchingModels,
-      }}
-    >
+    <SettingsContext.Provider value={contextValue}>
       {children}
     </SettingsContext.Provider>
   );

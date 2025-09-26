@@ -69,7 +69,7 @@ router.post(
     body('message').trim().notEmpty().withMessage('Message is required'),
     body('sessionId').optional().isUUID().withMessage('Invalid session ID format'),
     body('model').optional().isString().trim().notEmpty().withMessage('Model must be a non-empty string'),
-    body('provider').optional().isString().trim().notEmpty().withMessage('Provider must be a non-empty string'),
+    body('provider').optional().isIn(['openai', 'ollama']).withMessage('Invalid provider. Must be one of: openai, ollama'),
   ]),
   asyncHandler(chatController.processMessage)
 );

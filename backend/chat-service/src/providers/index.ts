@@ -4,3 +4,4 @@ export * from './IModelProvider';
 export * from './OpenAIProvider';
 export * from './OllamaProvider';
 export * from './ProviderFactory';
+export * from './ProviderRegistry';

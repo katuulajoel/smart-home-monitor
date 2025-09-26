@@ -5,6 +5,7 @@ import axios from 'axios';
 import { logger } from '@smart-home/shared';
 import { ProviderFactory } from '../providers/ProviderFactory';
 import { ChatMessage } from '../providers/types';
+import { getDefaultProviderConfig } from '../config/providers';
 
 // Configuration
 const TELEMETRY_SERVICE_URL = process.env.NODE_ENV === 'production'
@@ -36,8 +37,9 @@ interface ChatRequest extends Request {
   };
 }
 
-// Initialize Provider Factory
-const providerFactory = new ProviderFactory();
+// Initialize Provider Factory with validated configuration
+const providerConfig = getDefaultProviderConfig();
+const providerFactory = new ProviderFactory(providerConfig);
 
 // System prompt for the AI assistant
 const SYSTEM_PROMPT = `You are an AI assistant for a smart home energy monitoring system. 

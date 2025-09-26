@@ -154,12 +154,12 @@ export class OllamaProvider implements IModelProvider {
 
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 404) {
-          throw new Error(`Model '${options.model}' not found. Make sure it's installed with 'ollama pull ${options.model}'`);
+          throw new Error(`Model not available`);
         }
-        throw new Error(`Ollama API error: ${error.response?.status || 'Unknown'} - ${error.message}`);
+        throw new Error(`Service temporarily unavailable`);
       }
 
-      throw new Error(`Ollama chat failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(`Service temporarily unavailable`);
     }
   }
 

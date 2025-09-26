@@ -1,7 +1,6 @@
 import { IModelProvider } from './IModelProvider';
-import { OpenAIProvider } from './OpenAIProvider';
-import { OllamaProvider } from './OllamaProvider';
 import { ProviderStatus } from './types';
+import { ProviderRegistry } from './ProviderRegistry';
 import { logger } from '@smart-home/shared';
 
 export type ProviderType = 'openai' | 'ollama';
@@ -20,32 +19,28 @@ export interface ProviderConfig {
 export class ProviderFactory {
   private providers: Map<string, IModelProvider> = new Map();
   private config: ProviderConfig;
+  private registry: ProviderRegistry;
 
   constructor(config: ProviderConfig) {
     this.config = config;
+    this.registry = new ProviderRegistry();
     this.initializeProviders();
   }
 
   private initializeProviders(): void {
-    // Initialize OpenAI provider if configured
-    if (this.config.openai?.enabled && this.config.openai.apiKey) {
-      try {
-        const openaiProvider = new OpenAIProvider(this.config.openai.apiKey);
-        this.providers.set('openai', openaiProvider);
-        logger.info('OpenAI provider initialized');
-      } catch (error) {
-        logger.error('Failed to initialize OpenAI provider:', error instanceof Error ? error.message : 'Unknown error');
-      }
-    }
+    // Initialize providers using registry pattern
+    const providerConfigs = [
+      { name: 'openai', config: this.config.openai },
+      { name: 'ollama', config: this.config.ollama }
+    ];
 
-    // Initialize Ollama provider if configured
-    if (this.config.ollama?.enabled) {
-      try {
-        const ollamaProvider = new OllamaProvider(this.config.ollama.baseUrl);
-        this.providers.set('ollama', ollamaProvider);
-        logger.info('Ollama provider initialized');
-      } catch (error) {
-        logger.error('Failed to initialize Ollama provider:', error instanceof Error ? error.message : 'Unknown error');
+    for (const { name, config } of providerConfigs) {
+      if (config?.enabled) {
+        const provider = this.registry.createProvider(name, config);
+        if (provider) {
+          this.providers.set(name, provider);
+          logger.info(`${name} provider initialized successfully`);
+        }
       }
     }
 
@@ -89,27 +84,31 @@ export class ProviderFactory {
   }
 
   /**
-   * Get status of all providers
+   * Get status of all providers (parallel execution for better performance)
    */
   async getAllProviderStatuses(): Promise<ProviderStatus[]> {
-    const statuses: ProviderStatus[] = [];
-
-    for (const provider of this.providers.values()) {
+    const statusPromises = Array.from(this.providers.values()).map(async (provider) => {
       try {
-        const status = await provider.getStatus();
-        statuses.push(status);
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise<ProviderStatus>((_, reject) =>
+          setTimeout(() => reject(new Error('Status check timeout')), 10000)
+        );
+        
+        const statusPromise = provider.getStatus();
+        
+        return await Promise.race([statusPromise, timeoutPromise]);
       } catch (error) {
-        statuses.push({
+        return {
           name: provider.getName(),
-          status: 'unhealthy',
+          status: 'unhealthy' as const,
           models: [],
           lastChecked: new Date(),
           error: error instanceof Error ? error.message : 'Unknown error'
-        });
+        };
       }
-    }
+    });
 
-    return statuses;
+    return Promise.all(statusPromises);
   }
 
   /**
@@ -167,5 +166,12 @@ export class ProviderFactory {
     this.providers.clear();
     this.config = newConfig;
     this.initializeProviders();
+  }
+
+  /**
+   * Get the provider registry for extensibility
+   */
+  getRegistry(): ProviderRegistry {
+    return this.registry;
   }
 }
